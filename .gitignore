@@ -1,0 +1,30 @@
+# Runtime data
+data/
+monitor/data/*.jsonl
+monitor/data/*.json
+monitor/data/cpu_state.json
+
+# Logs
+*.log
+running/logs/*.log
+running/logs/nginx.pid
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.#*
+.*.swp
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Lua compiled bytecode (if any)
+*.lua.bak
+.gstack/

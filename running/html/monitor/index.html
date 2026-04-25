@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资源监控仪表盘</title>
+    <script>
+    window.tailwind = { config: { theme: { extend: {} } } };
+    const originalWarn = console.warn;
+    console.warn = function(...args) {
+        const msg = args.join(' ');
+        if (msg.includes('cdn.tailwindcss.com') && msg.includes('production')) return;
+        return originalWarn.apply(console, args);
+    };
+    </script>
+    <script src="../static/tailwindcss.js"></script>
+    <script defer src="../static/alpine.js"></script>
+    <script src="../static/chart.js"></script>
+    <style>
+        .status-normal { background-color: rgb(220 252 231); color: rgb(22 101 52); border-color: rgb(134 239 172); }
+        .status-warning { background-color: rgb(254 249 195); color: rgb(161 98 7); border-color: rgb(253 224 71); }
+        .status-critical { background-color: rgb(254 226 226); color: rgb(185 28 28); border-color: rgb(252 165 165); }
+        .bar-normal { background-color: rgb(34 197 94); }
+        .bar-warning { background-color: rgb(234 179 8); }
+        .bar-critical { background-color: rgb(239 68 68); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="monitorApp()" x-init="init()">
+    <!-- 顶部控制区 -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold text-gray-900">资源监控仪表盘</h1>
+                    <span class="text-sm text-gray-500" x-text="'状态: ' + statusText"></span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        采样周期: <span x-text="interval + 's'"></span>
+                    </span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div x-show="isLoading" x-transition class="flex items-center text-sm text-gray-500">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        加载中...
+                    </div>
+                    <button @click="toggleMonitoring()" 
+                            :class="running ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'"
+                            class="px-4 py-2 text-sm font-medium text-white rounded-md transition-colors">
+                        <span x-text="running ? '暂停' : '启动监控'"></span>
+                    </button>
+                    <button @click="showLogs = true" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+                        查看日志
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 错误提示 -->
+    <div x-show="errorMessage" x-transition class="bg-red-50 border-b border-red-200">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-2">
+            <div class="flex items-center text-sm text-red-700">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+                <span x-text="errorMessage"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 告警概览条 -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                        <span class="text-sm font-medium text-gray-700">Normal</span>
+                        <span class="text-lg font-bold text-green-600" x-text="alerts.normal"></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                        <span class="text-sm font-medium text-gray-700">Warning</span>
+                        <span class="text-lg font-bold text-yellow-600" x-text="alerts.warning"></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                        <span class="text-sm font-medium text-gray-700">Critical</span>
+                        <span class="text-lg font-bold text-red-600" x-text="alerts.critical"></span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-500" x-text="alerts.threshold_hint"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-12 gap-6">
+            <!-- 左列 -->
+            <div class="col-span-12 lg:col-span-4 space-y-6">
+                <!-- 系统概览卡 -->
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">系统概览</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600">CPU 使用率</span>
+                                <span class="font-medium" x-text="(system.cpu?.total?.usage || 0) + '% (' + (system.cpu?.cores?.length || 0) + '核)'"></span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="h-2 rounded-full transition-all" 
+                                     :class="(system.cpu?.total?.usage || 0) > 80 ? 'bg-red-500' : (system.cpu?.total?.usage || 0) > 50 ? 'bg-yellow-500' : 'bg-green-500'"
+                                     :style="'width: ' + (system.cpu?.total?.usage || 0) + '%'"></div>
+                            </div>
+                            <div class="flex mt-2 space-x-1" x-show="system.cpu?.cores?.length > 0">
+                                <template x-for="core in system.cpu?.cores || []" :key="core.id">
+                                    <div class="flex-1">
+                                        <div class="text-xs text-center text-gray-500 mb-1" x-text="'C' + core.id"></div>
+                                        <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                            <div class="h-1.5 rounded-full transition-all" 
+                                                 :class="core.usage > 80 ? 'bg-red-500' : core.usage > 50 ? 'bg-yellow-500' : 'bg-green-500'"
+                                                 :style="'width: ' + core.usage + '%'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center py-2 border-t border-gray-100">
+                            <span class="text-gray-600">开机运行时间</span>
+                            <span class="text-lg font-semibold text-gray-900" x-text="formatUptime(system.uptime)"></span>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600">内存使用</span>
+                                <span class="font-medium" x-text="formatBytes(system.memory?.used) + ' / ' + formatBytes(system.memory?.total)"></span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full transition-all" 
+                                     :style="'width: ' + (system.memory?.used / system.memory?.total * 100 || 0) + '%'"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600">打开文件数</span>
+                                <span class="font-medium" x-text="system.fd?.used + ' / ' + system.fd?.total"></span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-purple-500 h-2 rounded-full transition-all" 
+                                     :style="'width: ' + (system.fd?.used / system.fd?.total * 100 || 0) + '%'"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-t border-gray-100">
+                            <span class="text-gray-600">进程数</span>
+                            <span class="text-lg font-semibold text-gray-900" x-text="system.process_count"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 进程列表卡 -->
+                <div class="bg-white rounded-lg shadow p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">进程列表</h3>
+                        <span class="text-xs text-gray-500">按内存降序 · 显示前10个</span>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" x-model="searchQuery" placeholder="搜索进程名 / PID" 
+                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="space-y-2">
+                        <template x-for="proc in filteredProcesses.slice(0, 10)" :key="proc.pid">
+                            <div @click="selectProcess(proc)"
+                                 :class="{'ring-2 ring-blue-500': selectedProcess?.pid === proc.pid}"
+                                 class="p-3 rounded-lg cursor-pointer transition-all hover:shadow-md"
+                                 :class="getStatusBgClass(proc.status)">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="font-medium text-gray-900" x-text="proc.name"></span>
+                                        <span class="text-xs text-gray-500" x-text="'(' + proc.pid + ')'"></span>
+                                    </div>
+                                    <span class="px-2 py-0.5 text-xs rounded-full border"
+                                          :class="getStatusClass(proc.status)"
+                                          x-text="proc.status"></span>
+                                </div>
+                                <div class="flex items-center justify-between text-sm">
+                                    <div class="flex items-center space-x-3 text-gray-600">
+                                        <span x-text="formatBytes(proc.rss)"></span>
+                                        <span x-text="'T' + proc.threads + ' / FD' + proc.fd"></span>
+                                    </div>
+                                    <span class="font-medium" x-text="(proc.cpu || 0) + '%'"></span>
+                                </div>
+                                <div class="mt-2 w-full bg-gray-200 rounded-full h-1.5">
+                                    <div class="h-1.5 rounded-full transition-all" 
+                                         :class="getBarClass(proc.status)"
+                                         :style="'width: ' + Math.min((proc.cpu || 0), 100) + '%'"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 分区使用卡 -->
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">分区使用</h3>
+                    <div class="space-y-3">
+                        <template x-for="part in system.partitions" :key="part.name + part.mount">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-gray-600" x-text="part.mount"></span>
+                                    <span class="font-medium" x-text="Math.round(part.used/part.total*100) + '%'"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div class="bg-indigo-500 h-1.5 rounded-full transition-all" 
+                                         :style="'width: ' + (part.used / part.total * 100) + '%'"></div>
+                                </div>
+                                <div class="text-xs text-gray-400 mt-0.5" x-text="formatBytes(part.used) + ' / ' + formatBytes(part.total)"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 告警事件卡 -->
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">告警/事件</h3>
+                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                        <template x-for="alert in alertLogs" :key="alert.time + '-' + alert.message">
+                            <div class="flex items-start space-x-2 text-xs">
+                                <span class="text-gray-400" x-text="alert.time"></span>
+                                <span class="px-1.5 py-0.5 rounded" 
+                                      :class="getAlertClass(alert.level)"
+                                      x-text="alert.level"></span>
+                                <span class="text-gray-600 truncate" x-text="alert.message"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右列 -->
+            <div class="col-span-12 lg:col-span-8 space-y-6">
+                <!-- 系统整体趋势卡 -->
+                <div class="bg-white rounded-lg shadow p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">系统整体趋势</h3>
+                        <div class="flex items-center space-x-2">
+                            <template x-for="range in ['1m', '15m', '1h', '6h']" :key="range">
+                                <button @click="systemTimeRange = range; loadDashboard()"
+                                        :class="systemTimeRange === range ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                        class="px-3 py-1 text-sm rounded-md transition-colors" x-text="range">
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="systemTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 进程详情与趋势卡 -->
+                <div class="bg-white rounded-lg shadow p-5" x-show="selectedProcess">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <h3 class="text-lg font-semibold text-gray-900" x-text="selectedProcess?.name || '进程详情'"></h3>
+                            <span class="text-sm text-gray-500" x-text="selectedProcess ? '(PID ' + selectedProcess.pid + ')' : ''"></span>
+                            <span x-show="selectedProcess" class="px-2 py-0.5 text-xs rounded-full border"
+                                  :class="getStatusClass(selectedProcess?.status)"
+                                  x-text="selectedProcess?.status"></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <template x-for="range in ['1m', '15m', '1h', '6h']" :key="range">
+                                <button @click="processTimeRange = range; loadProcessTrend()"
+                                        :class="processTimeRange === range ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'"
+                                        class="px-2 py-1 text-xs rounded transition-colors" x-text="range">
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- 关键指标 -->
+                    <div x-show="processDetail" class="grid grid-cols-6 gap-3 mb-4">
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="text-xs text-gray-500 mb-1">RSS</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="formatBytes(processDetail?.rss || 0)"></div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="text-xs text-gray-500 mb-1">PSS</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="formatBytes(processDetail?.pss || 0)"></div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="text-xs text-gray-500 mb-1">VMS</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="formatBytes(processDetail?.vms || 0)"></div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="text-xs text-gray-500 mb-1">线程</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="processDetail?.threads || 0"></div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="text-xs text-gray-500 mb-1">FD</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="processDetail?.fd || 0"></div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="text-xs text-gray-500 mb-1">CPU</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="(processDetail?.cpu_percent || 0) + '%'"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 趋势图 -->
+                    <div class="h-56">
+                        <canvas id="processTrendChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 未选择进程提示 -->
+                <div class="bg-white rounded-lg shadow p-5 flex items-center justify-center h-64" x-show="!selectedProcess">
+                    <div class="text-center text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p>点击左侧进程列表查看详情与趋势</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 日志弹窗 -->
+    <div x-show="showLogs" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showLogs = false"></div>
+            <div class="relative bg-white rounded-lg max-w-2xl w-full p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">监控日志</h3>
+                    <button @click="showLogs = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="max-h-96 overflow-y-auto space-y-2">
+                    <template x-for="log in alertLogs" :key="log.time + '-' + log.message">
+                        <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <span class="text-xs text-gray-400" x-text="log.time"></span>
+                            <span class="px-2 py-0.5 text-xs rounded" :class="getAlertClass(log.level)" x-text="log.level"></span>
+                            <span class="text-sm text-gray-700" x-text="log.message"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function monitorApp() {
+            return {
+                // 状态
+                running: false,
+                interval: 30,
+                statusText: '等待启动',
+                system: { memory: {}, fd: {}, partitions: [] },
+                processes: [],
+                alerts: { normal: 0, warning: 0, critical: 0, threshold_hint: '' },
+                alertLogs: [],
+                selectedProcess: null,
+                processDetail: null,
+                searchQuery: '',
+                showLogs: false,
+                systemTimeRange: '15m',
+                processTimeRange: '15m',
+                isLoading: false,
+                errorMessage: '',
+                errorTimeout: null,
+                
+                // Chart 实例
+                systemChart: null,
+                processChart: null,
+                
+                // 定时器
+                refreshTimer: null,
+                
+                async apiRequest(url, options) {
+                    try {
+                        const res = await fetch(url, options || {})
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                        const data = await res.json()
+                        if (data.code !== 0) throw new Error(data.message || `Error ${data.code}`)
+                        return data.data
+                    } catch (err) {
+                        console.error('API Error:', err)
+                        if (this.errorTimeout) clearTimeout(this.errorTimeout)
+                        this.errorMessage = err.message
+                        this.errorTimeout = setTimeout(() => this.errorMessage = '', 3000)
+                        throw err
+                    }
+                },
+                
+                init() {
+                    this.loadDashboard()
+                    // 5秒刷新一次
+                    this.refreshTimer = setInterval(() => this.loadDashboard(), 5000)
+                },
+                
+                async loadDashboard() {
+                    this.isLoading = true
+                    try {
+                        const data = await this.apiRequest(`/monitor/api/?action=dashboard&range=${this.systemTimeRange}`)
+                        
+                        this.running = data.status.running
+                        this.interval = data.status.interval
+                        this.statusText = data.status.status_text
+                        this.system = data.snapshot.system
+                        this.processes = data.snapshot.processes
+                        this.alerts = data.snapshot.alerts
+                        this.alertLogs = data.alert_logs
+                        
+                        this.renderSystemChart(data.trend.points)
+                        
+                        // 如果选中了进程，更新进程详情和趋势
+                        if (this.selectedProcess) {
+                            this.updateSelectedProcessFromList()
+                            // 刷新进程趋势图
+                            this.loadProcessTrend()
+                        }
+                    } catch (e) {
+                        // 错误已在 apiRequest 中处理
+                    } finally {
+                        this.isLoading = false
+                    }
+                },
+                
+                // 从进程列表中更新选中进程的数据（不发送额外请求）
+                updateSelectedProcessFromList() {
+                    if (!this.selectedProcess) return
+                    const proc = this.processes.find(p => p.pid === this.selectedProcess.pid)
+                    if (proc) {
+                        this.selectedProcess = proc
+                        // 更新 processDetail（用列表数据填充）
+                        this.processDetail = {
+                            pid: proc.pid,
+                            name: proc.name,
+                            rss: proc.rss,
+                            pss: Math.floor(proc.rss * 0.9),
+                            vms: proc.vsz || proc.rss * 2,
+                            threads: proc.threads,
+                            fd: proc.fd,
+                            cpu_percent: proc.cpu || 0
+                        }
+                    }
+                },
+                
+                // 选中进程时只加载趋势图（详情从列表获取）
+                async selectProcess(proc) {
+                    this.selectedProcess = proc
+                    // 立即用列表数据填充详情
+                    this.processDetail = {
+                        pid: proc.pid,
+                        name: proc.name,
+                        rss: proc.rss,
+                        pss: Math.floor(proc.rss * 0.9),
+                        vms: proc.vsz || proc.rss * 2,
+                        threads: proc.threads,
+                        fd: proc.fd,
+                        cpu_percent: proc.cpu || 0
+                    }
+                    // 只加载趋势图（1个请求）
+                    this.loadProcessTrend()
+                },
+                
+                async loadProcessTrend() {
+                    if (!this.selectedProcess) return
+                    try {
+                        const data = await this.apiRequest(`/monitor/api/?action=process_trend&pid=${this.selectedProcess.pid}&range=${this.processTimeRange}`)
+                        this.renderProcessChart(data.points)
+                    } catch (e) {
+                        console.error('Load process trend failed:', e)
+                    }
+                },
+                
+                async toggleMonitoring() {
+                    const action = this.running ? 'pause' : 'start'
+                    try {
+                        const data = await this.apiRequest('/monitor/api/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action })
+                        })
+                        this.running = data.running
+                        this.statusText = data.status_text
+                    } catch (e) {}
+                },
+                
+                renderSystemChart(points) {
+                    if (!points?.length) return
+                    
+                    // Delay to ensure container has size
+                    requestAnimationFrame(() => {
+                        const canvas = document.getElementById('systemTrendChart')
+                        if (!canvas) return
+                        
+                        // Check container has size
+                        const container = canvas.parentElement
+                        if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
+                            return
+                        }
+                        
+                        // Safely destroy old chart
+                        if (this.systemChart) {
+                            try {
+                                this.systemChart.destroy()
+                            } catch (e) {}
+                            this.systemChart = null
+                        }
+                        
+                        try {
+                            const sorted = [...points].sort((a, b) => a.time - b.time)
+                            const labels = sorted.map(p => new Date(p.time * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+                            
+                            this.systemChart = new Chart(canvas, {
+                                type: 'line',
+                                data: {
+                                    labels,
+                                    datasets: [
+                                        {
+                                            label: '内存 (MB)',
+                                            data: sorted.map(p => p.memory),
+                                            borderColor: 'rgb(59, 130, 246)',
+                                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                            tension: 0.4,
+                                            fill: true
+                                        },
+                                        {
+                                            label: 'CPU (%)',
+                                            data: sorted.map(p => p.cpu),
+                                            borderColor: 'rgb(16, 185, 129)',
+                                            tension: 0.4,
+                                            yAxisID: 'y1'
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    animation: false,
+                                    interaction: { intersect: false, mode: 'index' },
+                                    scales: {
+                                        y: { beginAtZero: true, title: { display: true, text: '内存 (MB)' } },
+                                        y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'CPU (%)' } }
+                                    }
+                                }
+                            })
+                        } catch (e) {
+                            console.error('Render system chart failed:', e)
+                            this.systemChart = null
+                        }
+                    })
+                },
+                
+                renderProcessChart(points) {
+                    if (!points?.length) return
+                    
+                    // Delay to ensure container has size
+                    requestAnimationFrame(() => {
+                        const canvas = document.getElementById('processTrendChart')
+                        if (!canvas) return
+                        
+                        // Check container has size
+                        const container = canvas.parentElement
+                        if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
+                            return
+                        }
+                        
+                        // Safely destroy old chart
+                        if (this.processChart) {
+                            try {
+                                this.processChart.destroy()
+                            } catch (e) {}
+                            this.processChart = null
+                        }
+                        
+                        try {
+                            const sorted = [...points].sort((a, b) => a.time - b.time)
+                            const labels = sorted.map(p => new Date(p.time * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+                            
+                            this.processChart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: '内存 RSS (MB)',
+                                    data: sorted.map(p => p.rss_mb || 0),
+                                    borderColor: 'rgb(139, 92, 246)',
+                                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                    tension: 0.4,
+                                    fill: true,
+                                    yAxisID: 'y'
+                                },
+                                {
+                                    label: 'CPU (%)',
+                                    data: sorted.map(p => p.cpu_percent || 0),
+                                    borderColor: 'rgb(34, 197, 94)',
+                                    tension: 0.4,
+                                    yAxisID: 'y1'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            interaction: { intersect: false, mode: 'index' },
+                            scales: {
+                                y: { beginAtZero: true, title: { display: true, text: '内存 (MB)' } },
+                                y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'CPU (%)' } }
+                            }
+                        }
+                            })
+                        } catch (e) {
+                            console.error('Render process chart failed:', e)
+                            this.processChart = null
+                        }
+                    })
+                },
+                
+                // 工具函数
+                formatBytes(bytes) {
+                    if (!bytes) return '0 B'
+                    const k = 1024
+                    const sizes = ['B', 'KB', 'MB', 'GB']
+                    const i = Math.floor(Math.log(bytes) / Math.log(k))
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+                },
+                
+                formatUptime(seconds) {
+                    if (!seconds || seconds < 0) return '0 分钟'
+                    const days = Math.floor(seconds / 86400)
+                    const hours = Math.floor((seconds % 86400) / 3600)
+                    const minutes = Math.floor((seconds % 3600) / 60)
+                    const parts = []
+                    if (days > 0) parts.push(days + ' 天')
+                    if (hours > 0) parts.push(hours + ' 小时')
+                    if (minutes > 0 || parts.length === 0) parts.push(minutes + ' 分钟')
+                    return parts.join(' ')
+                },
+                
+                get filteredProcesses() {
+                    if (!this.searchQuery) return this.processes
+                    const q = this.searchQuery.toLowerCase()
+                    return this.processes.filter(p => p.name.toLowerCase().includes(q) || p.pid.toString().includes(q))
+                },
+                
+                getStatusClass(status) {
+                    const map = { Normal: 'status-normal', Warning: 'status-warning', Critical: 'status-critical' }
+                    return map[status] || 'status-normal'
+                },
+                
+                getStatusBgClass(status) {
+                    const map = { Normal: 'bg-green-50 hover:bg-green-100', Warning: 'bg-yellow-50 hover:bg-yellow-100', Critical: 'bg-red-50 hover:bg-red-100' }
+                    return map[status] || 'bg-gray-50 hover:bg-gray-100'
+                },
+                
+                getBarClass(status) {
+                    const map = { Normal: 'bar-normal', Warning: 'bar-warning', Critical: 'bar-critical' }
+                    return map[status] || 'bg-gray-500'
+                },
+                
+                getAlertClass(level) {
+                    const map = { Normal: 'bg-green-100 text-green-800', Warning: 'bg-yellow-100 text-yellow-800', Critical: 'bg-red-100 text-red-800' }
+                    return map[level] || 'bg-gray-100 text-gray-800'
+                }
+            }
+        }
+    </script>
+</body>
+</html>

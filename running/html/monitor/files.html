@@ -1,0 +1,2506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:;">
+    <title>文件管理器</title>
+    <script defer src="../static/alpine.js"></script>
+    <script src="../static/marked.min.js"></script>
+    <style>
+        /* ===== Layout ===== */
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-1 { flex: 1 1 0%; }
+        .flex-shrink-0, .shrink-0 { flex-shrink: 0; }
+        .min-w-0 { min-width: 0; }
+        .max-w-full { max-width: 100%; }
+        .max-w-md { max-width: 28rem; }
+        .w-full { width: 100%; }
+        .w-8 { width: 2rem; }
+        .w-32 { width: 8rem; }
+        .w-48 { width: 12rem; }
+        .w-24 { width: 6rem; }
+        .w-64 { width: 16rem; }
+        .w-80 { width: 20rem; }
+        .h-screen { height: 100vh; }
+        .h-2 { height: 0.5rem; }
+        .h-12 { height: 3rem; }
+        .h-full { height: 100%; }
+        .grid { display: grid; }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+        .min-w-\[160px\] { min-width: 160px; }
+        .max-w-\[120px\] { max-width: 120px; }
+        .h-\[calc\(100vh-60px\)\] { height: calc(100vh - 60px); }
+        @media (min-width: 640px) { .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (min-width: 768px) { .md\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        @media (min-width: 1024px) { .lg\:grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+        .gap-1 { gap: 0.25rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+        .space-x-1 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.25rem; }
+        .space-x-2 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.5rem; }
+        .space-x-3 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.75rem; }
+        .space-x-4 > :not([hidden]) ~ :not([hidden]) { margin-left: 1rem; }
+        .space-x-6 > :not([hidden]) ~ :not([hidden]) { margin-left: 1.5rem; }
+        .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+        .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+        .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+        .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; }
+        .col-span-12 { grid-column: span 12 / span 12; }
+        @media (min-width: 1024px) { .lg\:col-span-4 { grid-column: span 4 / span 4; } }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+
+        /* ===== Spacing ===== */
+        .p-1 { padding: 0.25rem; }
+        .p-2 { padding: 0.5rem; }
+        .p-3 { padding: 0.75rem; }
+        .p-4 { padding: 1rem; }
+        .p-5 { padding: 1.25rem; }
+        .p-6 { padding: 1.5rem; }
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+        .py-0\\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .pl-9 { padding-left: 2.25rem; }
+        .pr-4 { padding-right: 1rem; }
+        .m-0 { margin: 0; }
+        .ml-2 { margin-left: 0.5rem; }
+        .ml-4 { margin-left: 1rem; }
+        .ml-auto { margin-left: auto; }
+        .mr-2 { margin-right: 0.5rem; }
+        .mr-4 { margin-right: 1rem; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-3 { margin-bottom: 0.75rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .mx-1 { margin-left: 0.25rem; margin-right: 0.25rem; }
+
+        /* ===== Backgrounds ===== */
+        .bg-white { background-color: #fff; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .bg-gray-200 { background-color: #e5e7eb; }
+        .bg-gray-800 { background-color: #1f2937; }
+        .bg-gray-900 { background-color: #111827; }
+        .bg-blue-50 { background-color: #eff6ff; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .bg-blue-600 { background-color: #2563eb; }
+        .bg-green-50 { background-color: #f0fdf4; }
+        .bg-green-500 { background-color: #22c55e; }
+        .bg-green-600 { background-color: #16a34a; }
+        .bg-red-50 { background-color: #fef2f2; }
+        .bg-red-500 { background-color: #ef4444; }
+        .bg-red-600 { background-color: #dc2626; }
+        .bg-yellow-500 { background-color: #f59e0b; }
+        .bg-purple-500 { background-color: #a855f7; }
+        .bg-pink-500 { background-color: #ec4899; }
+
+        /* ===== Text Colors ===== */
+        .text-white { color: #fff; }
+        .text-gray-300 { color: #d1d5db; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-gray-500 { color: #6b7280; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-700 { color: #374151; }
+        .text-gray-900 { color: #111827; }
+        .text-blue-500 { color: #3b82f6; }
+        .text-blue-600 { color: #2563eb; }
+        .text-blue-700 { color: #1d4ed8; }
+        .text-blue-800 { color: #1e40af; }
+        .text-green-600 { color: #16a34a; }
+        .text-red-500 { color: #ef4444; }
+        .text-red-600 { color: #dc2626; }
+        .text-red-700 { color: #b91c1c; }
+        .text-yellow-500 { color: #f59e0b; }
+        .text-yellow-600 { color: #d97706; }
+        .text-purple-500 { color: #a855f7; }
+        .text-pink-500 { color: #ec4899; }
+
+        /* ===== Typography ===== */
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-wider { letter-spacing: 0.05em; }
+        .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+
+        /* ===== Borders ===== */
+        .border { border-width: 1px; border-style: solid; border-color: #e5e7eb; }
+        .border-0 { border: 0; }
+        .border-b { border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #e5e7eb; }
+        .border-l { border-left-width: 1px; border-left-style: solid; border-left-color: #e5e7eb; }
+        .border-r { border-right-width: 1px; border-right-style: solid; border-right-color: #e5e7eb; }
+        .border-t { border-top-width: 1px; border-top-style: solid; border-top-color: #e5e7eb; }
+        .border-gray-100 { border-color: #f3f4f6; }
+        .border-gray-200 { border-color: #e5e7eb; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .border-transparent { border-color: transparent; }
+        .rounded { border-radius: 0.25rem; }
+        .rounded-md { border-radius: 0.375rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-full { border-radius: 9999px; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+
+        /* ===== Sizing ===== */
+        .min-h-screen { min-height: 100vh; }
+        .max-h-48 { max-height: 12rem; }
+        .max-h-96 { max-height: 24rem; }
+        .max-h-full { max-height: 100%; }
+        .overflow-hidden { overflow: hidden; }
+        .overflow-auto { overflow: auto; }
+        .overflow-y-auto { overflow-y: auto; }
+
+        /* ===== Positioning ===== */
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .z-100 { z-index: 100; }
+        .z-200 { z-index: 200; }
+        .top-16 { top: 4rem; }
+        .right-16 { right: 4rem; }
+        .bottom-4 { bottom: 1rem; }
+        .right-4 { right: 1rem; }
+
+        /* ===== Interactivity ===== */
+        .cursor-pointer { cursor: pointer; }
+        .cursor-not-allowed { cursor: not-allowed; }
+        .transition-colors { transition-property: color, background-color, border-color; transition-timing-function: cubic-bezier(0.4,0,0.2,1); transition-duration: 150ms; }
+        .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4,0,0.2,1); transition-duration: 150ms; }
+        .transition-opacity { transition-property: opacity; transition-timing-function: cubic-bezier(0.4,0,0.2,1); transition-duration: 150ms; }
+        .opacity-0 { opacity: 0; }
+        .opacity-50 { opacity: 0.5; }
+        .opacity-75 { opacity: 0.75; }
+        .opacity-100 { opacity: 1; }
+        .duration-300 { transition-duration: 300ms; }
+        .outline-none { outline: none; }
+        .user-select-none { user-select: none; }
+        .pointer-events-none { pointer-events: none; }
+        .hover\:bg-gray-100:hover { background-color: #f3f4f6; }
+        .hover\:bg-gray-200:hover { background-color: #e5e7eb; }
+        .hover\:bg-blue-600:hover { background-color: #2563eb; }
+        .hover\:bg-green-600:hover { background-color: #16a34a; }
+        .hover\:bg-red-600:hover { background-color: #dc2626; }
+        .hover\:bg-yellow-600:hover { background-color: #d97706; }
+        .hover\:bg-blue-50:hover { background-color: #eff6ff; }
+        .hover\:bg-green-50:hover { background-color: #f0fdf4; }
+        .hover\:bg-red-50:hover { background-color: #fef2f2; }
+        .hover\:text-blue-600:hover { color: #2563eb; }
+        .hover\:text-gray-600:hover { color: #4b5563; }
+        .hover\:shadow-md:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .hover\:shadow-lg:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .focus\:outline-none:focus { outline: none; }
+        .focus\:ring-2:focus { box-shadow: 0 0 0 2px rgba(59,130,246,0.5); }
+        .focus\:ring-blue-500:focus { box-shadow: 0 0 0 2px rgba(59,130,246,0.5); }
+        .focus\:border-transparent:focus { border-color: transparent; }
+
+        /* ===== Visibility ===== */
+        .hidden { display: none; }
+        @media (min-width: 640px) { .sm\:inline { display: inline; } }
+        .resize-none { resize: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        .backdrop-filter { backdrop-filter: blur(4px); }
+
+        /* ===== Misc ===== */
+        .bg-opacity-75 { opacity: 0.75; }
+        .leading-5 { line-height: 1.25rem; }
+        .leading-6 { line-height: 1.5rem; }
+        .leading-8 { line-height: 2rem; }
+        .font-mono { font-family: Consolas, Monaco, 'Courier New', monospace; }
+        .inline-flex { display: inline-flex; }
+        .inline-block { display: inline-block; }
+        .block { display: block; }
+        .inline { display: inline; }
+        .table { display: table; }
+        .flow-root { display: flow-root; }
+        .list-none { list-style: none; }
+        .whitespace-pre { white-space: pre; }
+        .border-separate { border-collapse: separate; }
+        .border-spacing-0 { border-spacing: 0; }
+        .transform { transform: translateX(var(--tw-translate-x, 0)) translateY(var(--tw-translate-y, 0)); }
+        .translate-x-20 { transform: translateX(20px); }
+        .content-center { align-content: center; }
+        .text-left { text-align: left; }
+        .rounded-t-xl { border-top-left-radius: 0.75rem; border-top-right-radius: 0.75rem; }
+        .rounded-b-xl { border-bottom-left-radius: 0.75rem; border-bottom-right-radius: 0.75rem; }
+        .line-through { text-decoration: line-through; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .invisible { visibility: hidden; }
+        .left-3 { left: 0.75rem; }
+        .top-1\/2 { top: 50%; }
+        .-translate-y-1\/2 { transform: translateY(-50%); }
+        .my-1 { margin-top: 0.25rem; margin-bottom: 0.25rem; }
+        .object-contain { object-fit: contain; }
+        .group:hover .group-hover\:opacity-100 { opacity: 1; }
+        /* ===== 基础样式 ===== */
+        * { box-sizing: border-box; }
+        button { border: none; background: none; cursor: pointer; padding: 0; margin: 0; }
+        input[type="checkbox"] { accent-color: #2563eb; }
+        
+        /* ===== 图标系统 ===== */
+        .icon {
+            width: 1em;
+            height: 1em;
+            display: inline-block;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+        .icon-lg { width: 1.5em; height: 1.5em; }
+        .icon-xl { width: 2.5em; height: 2.5em; }
+        .icon-sm { width: 0.875em; height: 0.875em; }
+        
+        /* ===== 滚动条样式 ===== */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+        
+        /* ===== 目录树样式 ===== */
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            margin: 2px 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .tree-item:hover {
+            background-color: #E5E7EB;
+        }
+        .tree-item.active {
+            background-color: #DBEAFE;
+            color: #1E40AF;
+        }
+        .tree-item.drag-over {
+            background-color: #BFDBFE;
+            border: 2px dashed #3B82F6;
+        }
+        .tree-children {
+            margin-left: 20px;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out, opacity 0.2s ease-out;
+        }
+        .tree-children.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+        .tree-children.expanded {
+            max-height: 2000px;
+            opacity: 1;
+        }
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 4px;
+            transition: transform 0.2s ease;
+        }
+        .tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+        .tree-icon {
+            margin-right: 6px;
+            color: #F59E0B;
+        }
+        .tree-icon.root {
+            color: #3B82F6;
+        }
+        
+        /* ===== 文件列表项样式 ===== */
+        .file-item {
+            transition: all 0.15s ease;
+            position: relative;
+        }
+        .file-item:hover { 
+            background-color: #F3F4F6 !important; 
+        }
+        .file-item.selected { 
+            background-color: #DBEAFE !important;
+        }
+        .file-item.selected .file-name {
+            color: #1E40AF;
+            font-weight: 500;
+        }
+        
+        /* ===== 拖拽样式 ===== */
+        .drag-over { 
+            background-color: #DBEAFE !important; 
+            border: 2px dashed #3B82F6;
+            border-radius: 8px;
+        }
+        
+        /* ===== 加载骨架屏 ===== */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* ===== 动画 ===== */
+        .fade-in { animation: fadeIn 0.2s ease-in; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(-10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .slide-in { animation: slideIn 0.2s ease-out; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        
+        /* ===== Toast 通知 ===== */
+        .toast-container {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease-out;
+            min-width: 200px;
+            max-width: 400px;
+        }
+        .toast.success { background: #10B981; }
+        .toast.error { background: #EF4444; }
+        .toast.info { background: #3B82F6; }
+        .toast.warning { background: #F59E0B; }
+        
+        /* ===== 对话框样式 ===== */
+        .dialog-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            animation: fadeIn 0.2s;
+        }
+        .dialog-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 400px;
+            max-width: 90vw;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s;
+        }
+        .dialog-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dialog-content {
+            margin-bottom: 20px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .dialog-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        .dialog-btn:hover { transform: translateY(-1px); }
+        .dialog-btn-secondary {
+            background: #F3F4F6;
+            color: #374151;
+        }
+        .dialog-btn-secondary:hover { background: #E5E7EB; }
+        .dialog-btn-danger {
+            background: #EF4444;
+            color: white;
+        }
+        .dialog-btn-danger:hover { background: #DC2626; }
+        .dialog-btn-primary {
+            background: #3B82F6;
+            color: white;
+        }
+        .dialog-btn-primary:hover { background: #2563EB; }
+        
+        /* ===== 代码预览 ===== */
+        .code-preview {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            line-height: 1.6;
+            font-size: 13px;
+        }
+
+        /* ===== Markdown 预览 ===== */
+        .markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .markdown-body h1 { font-size: 1.75em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .markdown-body h3 { font-size: 1.25em; }
+        .markdown-body h4 { font-size: 1em; }
+        .markdown-body p { margin: 1em 0; }
+        .markdown-body code {
+            background: #f5f5f5;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+        .markdown-body pre {
+            background: #f5f5f5;
+            padding: 1em;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+        }
+        .markdown-body blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 1em;
+            margin-left: 0;
+            color: #666;
+        }
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 2em;
+            margin: 1em 0;
+        }
+        .markdown-body li { margin: 0.3em 0; }
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+        .markdown-body th, .markdown-body td {
+            border: 1px solid #ddd;
+            padding: 0.5em 1em;
+            text-align: left;
+        }
+        .markdown-body th { background: #f5f5f5; font-weight: 600; }
+        .markdown-body a { color: #3b82f6; text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        .markdown-body img { max-width: 100%; height: auto; }
+        .markdown-body hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+        
+        /* ===== 可排序表头 ===== */
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .sortable:hover {
+            background-color: #F3F4F6;
+        }
+        .sort-icon {
+            margin-left: 4px;
+            opacity: 0.5;
+        }
+        .sort-icon.active {
+            opacity: 1;
+            color: #3B82F6;
+        }
+        
+        /* ===== 快捷键提示 ===== */
+        kbd {
+            background: #F3F4F6;
+            border: 1px solid #D1D5DB;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        /* ===== 网格视图 ===== */
+        .grid-item {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            border-radius: 12px;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .grid-item:hover {
+            background-color: #F3F4F6;
+            transform: translateY(-2px);
+        }
+        .grid-item.selected {
+            background-color: #DBEAFE;
+            border-color: #3B82F6;
+        }
+        
+        /* ===== 空状态 ===== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9CA3AF;
+        }
+        
+        /* ===== 分隔条 ===== */
+        .resizer {
+            width: 4px;
+            cursor: col-resize;
+            background: transparent;
+            transition: background 0.2s;
+        }
+        .resizer:hover {
+            background: #3B82F6;
+        }
+
+        /* ===== 批量操作栏 ===== */
+        .batch-bar {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            border: 1px solid #e5e7eb;
+            padding: 0.75rem 1.25rem;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        /* ===== 地址栏 ===== */
+        .address-bar {
+            background: #F3F4F6;
+            border-radius: 8px;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .address-bar button:hover {
+            background: #E5E7EB;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen overflow-hidden" 
+      x-data="fileManager()" 
+      x-init="init()" 
+      @keydown.window="handleGlobalKeydown($event)"
+>
+    
+    <!-- ===== 顶部工具栏 ===== -->
+    <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3 flex-1 min-w-0">
+            <!-- 导航按钮 -->
+            <div class="flex items-center space-x-1">
+                <button @click="navigateBack()" 
+                        :disabled="!canGoBack"
+                        class="p-2 rounded-lg transition-colors"
+                        :class="canGoBack ? 'hover:bg-gray-100 text-gray-700' : 'text-gray-300 cursor-not-allowed'"
+                        title="后退 (Alt+←)">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <button @click="navigateForward()" 
+                        :disabled="!canGoForward"
+                        class="p-2 rounded-lg transition-colors"
+                        :class="canGoForward ? 'hover:bg-gray-100 text-gray-700' : 'text-gray-300 cursor-not-allowed'"
+                        title="前进 (Alt+→)">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+                <button @click="navigateUp()" 
+                        :disabled="!canGoUp"
+                        class="p-2 rounded-lg transition-colors"
+                        :class="canGoUp ? 'hover:bg-gray-100 text-gray-700' : 'text-gray-300 cursor-not-allowed'"
+                        title="向上一级 (Alt+↑)">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- 地址栏 -->
+            <div class="address-bar flex-1 min-w-0">
+                <button @click="currentPath = rootNodes.length > 0 ? rootNodes[0].path : '/'; loadFiles()"
+                        class="p-1 transition-colors"
+                        :class="{ 'text-blue-600 font-medium': currentPath.startsWith(rootNodes.length > 0 ? rootNodes[0].path : '/') }">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                </button>
+                <span class="text-gray-400">/</span>
+                <template x-for="(crumb, index) in breadcrumbs" :key="index">
+                    <span class="flex items-center">
+                        <button @click="navigateTo(index)" 
+                                class="px-2 py-1 rounded hover:bg-gray-200 transition-colors truncate max-w-[120px]"
+                                :class="{ 'text-blue-600 font-medium': index === breadcrumbs.length - 1 }"
+                                x-text="crumb.name"></button>
+                        <span x-show="index < breadcrumbs.length - 1" class="text-gray-400 mx-1">/</span>
+                    </span>
+                </template>
+            </div>
+            
+            <!-- 搜索框 -->
+            <div class="relative">
+                <input type="search" 
+                       x-model="searchQuery" 
+                       @input="handleSearch()"
+                       placeholder="搜索..." 
+                       class="pl-9 pr-4 py-2 border rounded-lg text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <svg class="icon absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-2 shrink-0 ml-4">
+            <!-- 视图切换 -->
+            <button @click="viewMode = viewMode === 'list' ? 'grid' : 'list'" 
+                    class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    :title="viewMode === 'list' ? '切换到网格视图' : '切换到列表视图'">
+                <template x-if="viewMode === 'list'">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z"/>
+                    </svg>
+                </template>
+                <template x-if="viewMode === 'grid'">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 6h4v2H4zm0 5h4v2H4zm0 5h4v2H4zm6-10h10v2H10zm0 5h10v2H10zm0 5h10v2H10z"/>
+                    </svg>
+                </template>
+            </button>
+            
+            <!-- 刷新 -->
+            <button @click="loadFiles()" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="刷新 (F5)">
+                <svg class="icon icon-lg" :class="{ 'animate-spin': loading }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                </svg>
+            </button>
+            
+            <!-- 新建目录 -->
+            <button @click="showMkdirDialog = true" class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-1 transition-colors">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z"/>
+                </svg>
+                <span class="hidden sm:inline">新建目录</span>
+            </button>
+            
+            <!-- 上传 -->
+            <button @click="triggerFileUpload()" class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-1 transition-colors">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+                </svg>
+                <span class="hidden sm:inline">上传</span>
+            </button>
+            <input type="file" id="fileInput" x-ref="fileInput" @change="handleFileSelect($event)" multiple class="hidden">
+        </div>
+    </header>
+
+    <!-- ===== 主体区域 ===== -->
+    <div class="flex h-[calc(100vh-60px)]">
+        
+        <!-- ===== 左侧目录树 ===== -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <!-- 树标题 -->
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wider">导航</h2>
+                <button class="text-gray-400 hover:text-red-500 transition-colors p-1" @click="logout()" title="退出登录">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+            
+            <!-- 树根节点 -->
+            <div class="flex-1 overflow-y-auto py-2" @dragover.prevent @drop.prevent="handleTreeDrop($event, null)">
+                <template x-for="root in rootNodes" :key="root.path">
+                    <div>
+                        <!-- 根节点 -->
+                        <div class="tree-item"
+                             :class="{ 'active': currentPath === root.path }"
+                             @click="selectTreeNode(root)"
+                             @dragover.prevent="handleTreeDragOver($event, root)"
+                             @dragleave.prevent="handleTreeDragLeave($event)"
+                             @drop.prevent="handleTreeDrop($event, root)">
+                            <span class="tree-toggle" 
+                                  @click.stop="toggleTreeNode(root)"
+                                  :class="{ 'expanded': root.expanded, 'invisible': !root.hasChildren }">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                                </svg>
+                            </span>
+                            <svg class="icon icon-lg tree-icon root" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
+                            </svg>
+                            <span class="truncate flex-1" x-text="root.name"></span>
+                        </div>
+                        
+                        <!-- 子节点 -->
+                        <div class="tree-children" 
+                             :class="{ 'expanded': root.expanded, 'collapsed': !root.expanded }"
+                             x-show="root.expanded">
+                            <template x-for="child in root.children" :key="child.path">
+                                <div x-data="{ showChildren: false }">
+                                    <div class="tree-item"
+                                         :class="{ 'active': currentPath === child.path, 'drag-over': child.isDragOver }"
+                                         :style="'padding-left: ' + (child.level * 12 + 8) + 'px'"
+                                         @click="selectTreeNode(child)"
+                                         @dblclick.stop="toggleTreeNode(child)"
+                                         @dragover.prevent="handleTreeDragOver($event, child)"
+                                         @dragleave.prevent="handleTreeDragLeave($event)"
+                                         @drop.prevent="handleTreeDrop($event, child)">
+                                        <span class="tree-toggle" 
+                                              @click.stop="toggleTreeNode(child)"
+                                              :class="{ 'expanded': child.expanded, 'invisible': !child.hasChildren }">
+                                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                                            </svg>
+                                        </span>
+                                        <svg class="icon icon-lg tree-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
+                                        </svg>
+                                        <span class="truncate flex-1" x-text="child.name"></span>
+                                        <span x-show="child.loading" class="ml-2">
+                                            <svg class="icon animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="10"/>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- 递归渲染子节点 -->
+                                    <div x-show="child.expanded && child.children.length > 0">
+                                        <template x-for="grandChild in child.children" :key="grandChild.path">
+                                            <div>
+                                                <div class="tree-item"
+                                                     :class="{ 'active': currentPath === grandChild.path, 'drag-over': grandChild.isDragOver }"
+                                                     :style="'padding-left: ' + (grandChild.level * 12 + 8) + 'px'"
+                                                     @click="selectTreeNode(grandChild)"
+                                                     @dragover.prevent="handleTreeDragOver($event, grandChild)"
+                                                     @dragleave.prevent="handleTreeDragLeave($event)"
+                                                     @drop.prevent="handleTreeDrop($event, grandChild)">
+                                                    <span class="tree-toggle invisible">
+                                                        <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                                                        </svg>
+                                                    </span>
+                                                    <svg class="icon icon-lg tree-icon" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
+                                                    </svg>
+                                                    <span class="truncate flex-1" x-text="grandChild.name"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            
+            <!-- 树底部操作 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <button @click="expandAll()" class="text-xs text-gray-600 hover:text-blue-600 mr-4">
+                    展开全部
+                </button>
+                <button @click="collapseAll()" class="text-xs text-gray-600 hover:text-blue-600">
+                    折叠全部
+                </button>
+            </div>
+        </aside>
+        
+        <!-- ===== 右侧文件列表 ===== -->
+        <main class="flex-1 overflow-auto p-4 relative"
+              @dragover.prevent="dragOver = true"
+              @dragleave.prevent="dragOver = false"
+              @drop.prevent="handleDrop($event)"
+              :class="{ 'drag-over': dragOver }">
+            
+            <!-- 骨架屏加载状态 -->
+            <div x-show="loading" class="space-y-2">
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+            </div>
+            
+            <!-- 空目录提示 -->
+            <div x-show="!loading && filteredFiles.length === 0" class="empty-state">
+                <svg class="icon icon-xl mx-auto mb-4 text-gray-300" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
+                </svg>
+                <p class="text-lg font-medium" x-text="searchQuery ? '没有找到匹配的文件' : '此文件夹为空'"></p>
+                <p class="text-sm mt-2" x-show="!searchQuery">拖拽文件到此处上传，或点击"上传"按钮</p>
+            </div>
+            
+            <!-- 列表视图 -->
+            <div x-show="!loading && viewMode === 'list' && filteredFiles.length > 0" 
+                 class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 sortable" @click="setSort('name')">
+                                名称
+                                <span class="sort-icon" :class="{ active: sortBy === 'name' }" x-text="sortBy === 'name' ? (sortDesc ? '▼' : '▲') : '⇅'"></span>
+                            </th>
+                            <th class="px-4 py-3 w-32 sortable" @click="setSort('size')">
+                                大小
+                                <span class="sort-icon" :class="{ active: sortBy === 'size' }" x-text="sortBy === 'size' ? (sortDesc ? '▼' : '▲') : '⇅'"></span>
+                            </th>
+                            <th class="px-4 py-3 w-48 sortable" @click="setSort('mtime')">
+                                修改时间
+                                <span class="sort-icon" :class="{ active: sortBy === 'mtime' }" x-text="sortBy === 'mtime' ? (sortDesc ? '▼' : '▲') : '⇅'"></span>
+                            </th>
+                            <th class="px-4 py-3 w-24 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(file, index) in filteredFiles" :key="file.name">
+                            <tr class="file-item border-b border-gray-100 cursor-pointer"
+                                :class="{ 
+                                    'selected': selectedFiles.includes(file.name),
+                                    'folder': file.type === 'directory'
+                                }"
+                                @click="handleRowClick(file, $event)"
+                                @dblclick="handleDblClick(file)"
+                                @contextmenu.prevent="showContextMenu($event, file)"
+                                draggable="true"
+                                @dragstart="handleDragStart($event, file)"
+                                @dragend="handleDragEnd($event)">
+                                <td class="px-4 py-3 flex items-center gap-3">
+                                    <svg class="icon icon-lg shrink-0" :class="getFileIconClass(file)" viewBox="0 0 24 24" fill="currentColor">
+                                        <path x-bind:d="getFileIconPath(file)"/>
+                                    </svg>
+                                    <span class="file-name truncate" x-text="file.name"></span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-600 text-sm" x-text="file.size_formatted"></td>
+                                <td class="px-4 py-3 text-gray-600 text-sm" x-text="formatDate(file.mtime)"></td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                         :class="{ 'opacity-100': selectedFiles.includes(file.name) }">
+                                        <button @click.stop="downloadFile(file)" 
+                                                class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" 
+                                                title="下载">
+                                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                            </svg>
+                                        </button>
+                                        <button x-show="isEditableFile(file)"
+                                                @click.stop="editFile(file)" 
+                                                class="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors" 
+                                                title="编辑">
+                                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 网格视图 -->
+            <div x-show="!loading && viewMode === 'grid' && filteredFiles.length > 0" 
+                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <template x-for="file in filteredFiles" :key="file.name">
+                    <div class="grid-item file-item bg-white cursor-pointer"
+                         :class="{ 
+                             'selected': selectedFiles.includes(file.name),
+                             'folder': file.type === 'directory'
+                         }"
+                         @click="handleRowClick(file, $event)"
+                         @dblclick="handleDblClick(file)"
+                         @contextmenu.prevent="showContextMenu($event, file)"
+                         draggable="true"
+                         @dragstart="handleDragStart($event, file)"
+                         @dragend="handleDragEnd($event)">
+                        <svg class="icon icon-xl mx-auto mb-3" :class="getFileIconClass(file)" viewBox="0 0 24 24" fill="currentColor">
+                            <path x-bind:d="getFileIconPath(file)"/>
+                        </svg>
+                        <p class="text-sm font-medium truncate text-center px-2 w-full" 
+                           :class="file.type === 'directory' ? 'text-blue-700' : 'text-gray-700'"
+                           x-text="file.name"></p>
+                        <p class="text-xs text-gray-500 mt-1" x-text="file.size_formatted"></p>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 状态栏 -->
+            <div x-show="!loading && files.length > 0" class="mt-4 flex items-center justify-between text-sm text-gray-500">
+                <span x-text="getStatusText()"></span>
+                <span x-show="selectedFiles.length > 0" x-text="'已选择 ' + selectedFiles.length + ' 项'"></span>
+            </div>
+        </main>
+    </div>
+
+    <!-- ===== 批量操作浮动栏 ===== -->
+    <div x-show="selectedFiles.length > 0"
+         class="batch-bar">
+        <span class="text-sm text-gray-600">已选择 <strong x-text="selectedFiles.length"></strong> 项</span>
+        <button @click="batchDownload()"
+                class="px-3 py-1.5 text-white text-sm rounded-lg flex items-center gap-1.5 transition-colors"
+                style="background-color: #3b82f6;">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            打包下载
+        </button>
+        <button @click="batchDelete()"
+                class="px-3 py-1.5 text-white text-sm rounded-lg flex items-center gap-1.5 transition-colors"
+                style="background-color: #ef4444;">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            删除
+        </button>
+        <button @click="selectedFiles = []"
+                class="px-2 py-1.5 text-gray-400 hover:text-gray-600 transition-colors" title="取消选择">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- ===== 上传进度面板 ===== -->
+    <div x-show="uploads.length > 0" 
+         class="fixed bottom-4 right-4 w-80 bg-white rounded-xl shadow-lg border border-gray-200 p-4 z-40">
+        <h4 class="font-semibold mb-3 flex items-center gap-2">
+            <svg class="icon text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            </svg>
+            上传进度
+        </h4>
+        <template x-for="upload in uploads" :key="upload.id">
+            <div class="mb-3">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="truncate flex-1" x-text="upload.name"></span>
+                    <span class="text-gray-500 ml-2" x-text="upload.progress + '%'"></span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                         :style="'width: ' + upload.progress + '%'"></div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- ===== 右键上下文菜单 ===== -->
+    <div x-show="contextMenu.show"
+         class="fixed bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[160px]"
+         :style="'left: ' + contextMenu.x + 'px; top: ' + contextMenu.y + 'px'"
+         @click.away="contextMenu.show = false">
+        <template x-if="contextMenu.file">
+            <div>
+                <template x-if="contextMenu.file.type === 'directory'">
+                    <div>
+                        <button @click="openDirectory(contextMenu.file)"
+                                class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 19l7-7 7 7M12 12V5"/>
+                            </svg>
+                            打开
+                        </button>
+                        <button @click="downloadFile(contextMenu.file); contextMenu.show = false"
+                                class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <path d="M7 10l5 5 5-5M12 15V3"/>
+                            </svg>
+                            打包下载
+                        </button>
+                    </div>
+                </template>
+                <template x-if="contextMenu.file.type !== 'directory'">
+                    <button @click="downloadFile(contextMenu.file); contextMenu.show = false"
+                            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <path d="M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        下载
+                    </button>
+                </template>
+                <template x-if="isEditableFile(contextMenu.file)">
+                    <button @click="editFile(contextMenu.file); contextMenu.show = false" 
+                            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        编辑
+                    </button>
+                </template>
+                <template x-if="canPreviewFile(contextMenu.file)">
+                    <button @click="previewFile(contextMenu.file); contextMenu.show = false" 
+                            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        预览
+                    </button>
+                </template>
+                <div class="border-t border-gray-200 my-1"></div>
+                <button @click="openRenameDialog()" 
+                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    重命名
+                </button>
+                <button @click="confirmDelete(contextMenu.file); contextMenu.show = false" 
+                        class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    删除
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <!-- ===== 新建目录对话框 ===== -->
+    <div x-show="showMkdirDialog" class="dialog-overlay" @click.self="showMkdirDialog = false">
+        <div class="dialog-box">
+            <h3 class="dialog-title">
+                <svg class="icon icon-lg text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z"/>
+                </svg>
+                新建目录
+            </h3>
+            <input type="text" 
+                   x-model="newDirName" 
+                   x-ref="mkdirInput"
+                   placeholder="请输入目录名称" 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   @keydown="handleMkdirKeydown($event)">
+            <div class="dialog-actions">
+                <button @click="showMkdirDialog = false" class="dialog-btn dialog-btn-secondary">取消</button>
+                <button @click="createDirectory()" 
+                        class="dialog-btn dialog-btn-primary"
+                        :disabled="!newDirName.trim()"
+                        :class="{ 'opacity-50 cursor-not-allowed': !newDirName.trim() }">
+                    创建
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 重命名对话框 ===== -->
+    <div x-show="showRenameDialog" class="dialog-overlay" @click.self="showRenameDialog = false">
+        <div class="dialog-box">
+            <h3 class="dialog-title">
+                <svg class="icon icon-lg text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                重命名
+            </h3>
+            <input type="text" 
+                   x-model="renameTarget.newName" 
+                   x-ref="renameInput"
+                   placeholder="请输入新名称" 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   @keydown="handleRenameKeydown($event)">
+            <div class="dialog-actions">
+                <button @click="showRenameDialog = false" class="dialog-btn dialog-btn-secondary">取消</button>
+                <button @click="renameFile()" 
+                        class="dialog-btn dialog-btn-primary"
+                        :disabled="!renameTarget.newName.trim()"
+                        :class="{ 'opacity-50 cursor-not-allowed': !renameTarget.newName.trim() }">
+                    重命名
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 删除确认对话框 ===== -->
+    <div x-show="showDeleteConfirm" class="dialog-overlay" @click.self="showDeleteConfirm = false">
+        <div class="dialog-box">
+            <h3 class="dialog-title text-red-600">
+                <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                确认删除
+            </h3>
+            <div class="dialog-content">
+                <p x-text="getDeleteMessage()"></p>
+                <p class="text-red-500 text-sm mt-2">⚠️ 此操作无法撤销</p>
+            </div>
+            <div class="dialog-actions">
+                <button @click="showDeleteConfirm = false" class="dialog-btn dialog-btn-secondary">取消</button>
+                <button @click="executeDelete()" class="dialog-btn dialog-btn-danger">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 文件预览对话框 ===== -->
+    <div x-show="preview.show" class="dialog-overlay" @click.self="closePreview()">
+        <div class="bg-white rounded-xl w-full h-full flex flex-col" style="max-width: 100vw; max-height: 100vh; border-radius: 0;">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold flex items-center gap-2">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    <span x-text="preview.file?.name"></span>
+                </h3>
+                <div class="flex items-center gap-3">
+                    <button @click="downloadFile(preview.file)" class="text-gray-600 hover:text-blue-600 p-1" title="下载">
+                        <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <path d="M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                    </button>
+                    <button @click="closePreview()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 图片预览 -->
+            <div x-show="preview.mediaType === 'image'" class="flex-1 overflow-auto p-4 bg-gray-800 flex items-center justify-center">
+                <img :src="preview.url" class="max-w-full max-h-full object-contain">
+            </div>
+
+            <!-- 音频预览 -->
+            <div x-show="preview.mediaType === 'audio'" class="flex-1 overflow-auto p-4 bg-gray-800 flex items-center justify-center">
+                <audio controls class="w-full max-w-md" :src="preview.url"></audio>
+            </div>
+
+            <!-- 视频预览 -->
+            <div x-show="preview.mediaType === 'video'" class="flex-1 overflow-auto p-4 bg-gray-800 flex items-center justify-center">
+                <video controls class="max-w-full max-h-full" :src="preview.url"></video>
+            </div>
+
+            <!-- Markdown 预览 -->
+            <div x-show="preview.mediaType === 'markdown'" class="flex-1 overflow-auto p-6 bg-white">
+                <div x-html="preview.renderedContent" class="markdown-body prose max-w-none"></div>
+            </div>
+
+            <!-- 文本预览 -->
+            <div x-show="!preview.mediaType" class="flex-1 overflow-auto p-4 bg-gray-900">
+                <pre class="code-preview text-gray-300" x-show="!preview.loading"><code x-text="preview.content"></code></pre>
+            </div>
+            
+            <!-- 底部信息栏 -->
+            <div class="p-4 border-t border-gray-200 text-sm text-gray-500 flex justify-between">
+                <span x-text="preview.file?.size_formatted"></span>
+                <span x-text="formatDate(preview.file?.mtime)"></span>
+                <span x-show="!preview.mediaType && preview.truncated" class="text-yellow-600">(已截断)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 文本编辑器对话框 ===== -->
+    <div x-show="editor.show" class="dialog-overlay" style="z-index: 200;" @click.self="closeEditor()">
+        <div class="bg-white rounded-xl w-full h-full flex flex-col" style="max-width: 100vw; max-height: 100vh; border-radius: 0;">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+                <div class="flex items-center gap-3">
+                    <svg class="icon text-blue-500 icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <div>
+                        <h3 class="text-lg font-semibold" x-text="editor.file?.name"></h3>
+                        <p class="text-xs text-gray-500" x-show="editor.isModified">已修改</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-500" x-text="getLanguageLabel(editor.language)"></span>
+                    <!-- Markdown 预览切换按钮 -->
+                    <button x-show="editor.language === 'markdown'" @click="editor.showPreview = !editor.showPreview"
+                            class="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5"
+                            :class="editor.showPreview ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span x-text="editor.showPreview ? '隐藏预览' : '显示预览'"></span>
+                    </button>
+                    <button @click="saveFile()" 
+                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+                            :disabled="editor.saving || !editor.isModified"
+                            :class="{ 'opacity-50 cursor-not-allowed': editor.saving || !editor.isModified }">
+                        <svg x-show="!editor.saving" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        <svg x-show="editor.saving" class="icon animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="10"/>
+                        </svg>
+                        <span x-text="editor.saving ? '保存中...' : '保存'"></span>
+                    </button>
+                    <button @click="closeEditor()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex flex-1 overflow-hidden" x-show="editor.language === 'markdown' && editor.showPreview">
+                <!-- 左：编辑区 + 行号 -->
+                <div class="flex flex-1 h-full">
+                    <div id="lineNumbersSplit" class="bg-gray-800 text-gray-500 select-none" style="font-family: Consolas, Monaco, 'Courier New', monospace; font-size: 13px; min-width: 40px; padding-right: 8px; text-align: right; overflow: hidden; white-space: pre-wrap; color: #6b7280;"></div>
+                    <textarea id="codeEditorSplit"
+                        class="flex-1 h-full resize-none p-4 bg-gray-900 text-gray-300 outline-none border-0"
+                        style="font-family: Consolas, Monaco, 'Courier New', monospace; font-size: 13px; line-height: 1.5; tab-size: 4; white-space: pre; overflow-x: auto;"
+                        x-model="editor.content"
+                        @input="editor.isModified = editor.content !== editor.originalContent; updateCursorInfo($event); updateLineNumbers()"
+                        @click="updateCursorInfo($event); updateLineNumbers()"
+                        @keyup="updateCursorInfo($event); updateLineNumbers()"
+                        @scroll="syncEditorScroll(); updateLineNumbers()"
+                        spellcheck="false"
+                        x-ref="codeEditor"></textarea>
+                </div>
+                <!-- 右：Markdown 预览 -->
+                <div id="markdownPreview" class="flex-1 overflow-auto p-4 bg-white border-l border-gray-700">
+                    <div class="markdown-body prose max-w-none"
+                         x-html="editor.content ? (typeof marked !== 'undefined' ? marked.parse(editor.content) : editor.content) : ''"></div>
+                </div>
+            </div>
+            <!-- 无预览模式：纯编辑区 -->
+            <div class="flex flex-1 h-full overflow-hidden" x-show="editor.language !== 'markdown' || !editor.showPreview">
+                <div class="flex flex-1 h-full">
+                    <div id="lineNumbers" class="bg-gray-800 text-gray-500 select-none" style="font-family: Consolas, Monaco, 'Courier New', monospace; font-size: 13px; min-width: 40px; padding-right: 8px; text-align: right; overflow: hidden; white-space: pre-wrap; color: #6b7280;"></div>
+                    <textarea id="codeEditor"
+                        class="flex-1 h-full resize-none p-4 bg-gray-900 text-gray-300 outline-none border-0"
+                        style="font-family: Consolas, Monaco, 'Courier New', monospace; font-size: 13px; line-height: 1.5; tab-size: 4; white-space: pre; overflow-x: auto;"
+                        x-model="editor.content"
+                        @input="editor.isModified = editor.content !== editor.originalContent; updateCursorInfo($event); updateLineNumbers()"
+                        @click="updateCursorInfo($event); updateLineNumbers()"
+                        @keyup="updateCursorInfo($event); updateLineNumbers()"
+                        @scroll="updateLineNumbers()"
+                        spellcheck="false"
+                        x-ref="codeEditor"></textarea>
+                </div>
+            </div>
+            <div class="px-4 py-2 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-between text-xs text-gray-500">
+                <span x-text="`行 ${editor.cursorLine || 1}, 列 ${editor.cursorCol || 1}`"></span>
+                <span x-text="`${editor.content?.length || 0} 字符`"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Toast 通知容器 ===== -->
+    <div class="toast-container">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="toast" :class="toast.type">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" x-html="getToastIcon(toast.type)">
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+
+    <!-- ===== JavaScript ===== -->
+    <script>
+        // 抑制 Alpine.js 的 isFromCancelledTransition 未捕获异常
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && e.reason.isFromCancelledTransition) {
+                e.preventDefault();
+            }
+        });
+
+        // 抑制 CodeMirror 5 的 mapFromLineView 返回 undefined 导致的 TypeError
+        // 这是一个已知的 CodeMirror 5 内部 bug，在不影响功能的情况下静默处理
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes("Cannot read properties of undefined (reading 'map')")) {
+                e.preventDefault();
+                e.stopPropagation();
+                return true;
+            }
+        });
+
+        function fileManager() {
+            return {
+                // ===== 状态 =====
+                currentUser: null,
+                isAdmin: false,
+                currentPath: '',
+                files: [],
+                loading: false,
+                viewMode: 'list',
+                selectedFiles: [],
+                dragOver: false,
+                uploads: [],
+                toasts: [],
+                
+                // 导航历史
+                history: [],
+                historyIndex: -1,
+                
+                // 搜索和排序
+                searchQuery: '',
+                sortBy: 'name',
+                sortDesc: false,
+                
+                // 对话框状态
+                showMkdirDialog: false,
+                showRenameDialog: false,
+                showDeleteConfirm: false,
+                newDirName: '',
+                renameTarget: { oldName: '', newName: '' },
+                deleteTarget: { file: null, files: [], isBatch: false },
+                
+                // 上下文菜单
+                contextMenu: { show: false, x: 0, y: 0, file: null },
+                
+                // 预览
+                preview: { show: false, file: null, content: '', renderedContent: '', url: '', mediaType: null, loading: false, truncated: false },
+                
+                // 编辑器
+                editor: {
+                    show: false,
+                    file: null,
+                    content: '',
+                    originalContent: '',
+                    language: 'text',
+                    isModified: false,
+                    saving: false,
+                    cursorLine: 1,
+                    cursorCol: 1,
+                    showPreview: false,
+                    cmInstance: null  // legacy, no longer used
+                },
+                
+                // 目录树（从后端API加载，参见 initSidebar）
+                rootNodes: [],
+                
+                
+                // ===== 初始化 =====
+                async init() {
+                    await this.checkAuth();
+                    await this.initSidebar();
+                    // 设置为第一个文件夹路径
+                    if (this.rootNodes.length > 0) {
+                        this.currentPath = this.rootNodes[0].path;
+                    }
+                    this.loadFiles();
+                    this.expandRootNodes();
+                },
+
+                async checkAuth() {
+                    const token = localStorage.getItem('session_token');
+                    const currentPath = window.location.pathname;
+                    if (!token) {
+                        window.location.href = '/monitor/login.html?next=' + encodeURIComponent(currentPath);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/auth/session', {
+                            headers: { 'X-Session-Token': token }
+                        });
+                        const data = await response.json();
+
+                        if (data.code !== 0) {
+                            localStorage.removeItem('session_token');
+                            localStorage.removeItem('user');
+                            window.location.href = '/monitor/login.html?next=' + encodeURIComponent(currentPath);
+                            return;
+                        }
+
+                        this.currentUser = data.data.username;
+                        this.isAdmin = data.data.role === 'admin';
+                    } catch (e) {
+                        window.location.href = '/monitor/login.html?next=' + encodeURIComponent(currentPath);
+                    }
+                },
+
+                getToken() {
+                    return localStorage.getItem('session_token') || '';
+                },
+
+                async apiRequest(url, options = {}) {
+                    const token = this.getToken();
+                    const headers = { ...options.headers };
+                    if (token) headers['X-Session-Token'] = token;
+                    return fetch(url, { ...options, headers });
+                },
+
+                async logout() {
+                    try {
+                        await this.apiRequest('/api/auth/logout?action=logout', { method: 'POST' });
+                    } finally {
+                        localStorage.removeItem('session_token');
+                        localStorage.removeItem('user');
+                        window.location.href = '/monitor/login.html';
+                    }
+                },
+
+                // 从后端加载侧边栏配置
+                async initSidebar() {
+                    try {
+                        const response = await this.apiRequest('/files/?action=config');
+                        const data = await response.json();
+                        if (data.code === 0 && data.data.folders) {
+                            this.rootNodes = data.data.folders.map(folder => ({
+                                name: folder.name,
+                                path: folder.path,
+                                expanded: false,
+                                hasChildren: true,
+                                children: [],
+                                loading: false
+                            }));
+                            // 默认展开第一个
+                            if (this.rootNodes.length > 0) {
+                                this.rootNodes[0].expanded = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to load sidebar config:', e);
+                    }
+                },
+                
+                // ===== 计算属性 =====
+                get breadcrumbs() {
+                    const parts = this.currentPath.split('/').filter(p => p);
+                    const crumbs = [];
+                    let current = '';
+                    for (const part of parts) {
+                        current += '/' + part;
+                        crumbs.push({ name: part, path: current });
+                    }
+                    return crumbs;
+                },
+                
+                get isAllSelected() {
+                    return this.files.length > 0 && this.selectedFiles.length === this.files.length;
+                },
+                
+                get canGoBack() {
+                    return this.historyIndex > 0;
+                },
+                
+                get canGoForward() {
+                    return this.historyIndex < this.history.length - 1;
+                },
+                
+                get canGoUp() {
+                    return !this.rootNodes.some(root => root.path === this.currentPath);
+                },
+                
+                get filteredFiles() {
+                    let result = [...(this.files || [])];
+                    
+                    // 搜索过滤
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        result = result.filter(f => f.name.toLowerCase().includes(query));
+                    }
+                    
+                    // 排序
+                    result.sort((a, b) => {
+                        if (a.type === 'directory' && b.type !== 'directory') return -1;
+                        if (a.type !== 'directory' && b.type === 'directory') return 1;
+                        
+                        let comparison = 0;
+                        switch (this.sortBy) {
+                            case 'name':
+                                comparison = a.name.localeCompare(b.name);
+                                break;
+                            case 'size':
+                                comparison = (a.size || 0) - (b.size || 0);
+                                break;
+                            case 'mtime':
+                                comparison = (a.mtime || 0) - (b.mtime || 0);
+                                break;
+                        }
+                        return this.sortDesc ? -comparison : comparison;
+                    });
+                    
+                    return result;
+                },
+                
+                // ===== 文件加载 =====
+                async loadFiles() {
+                    this.loading = true;
+                    try {
+                        const response = await this.apiRequest(`/files/?action=list&path=${encodeURIComponent(this.currentPath)}`);
+                        const data = await response.json();
+                        if (data.code === 0) {
+                            this.files = Array.isArray(data.data.items) ? data.data.items : (data.data.items ? [data.data.items] : []);
+                        } else {
+                            this.showToast(data.message, 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('加载文件列表失败', 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                // ===== 导航 =====
+                navigateTo(index) {
+                    if (index === -1) return;
+                    const path = this.breadcrumbs[index].path;
+                    this.navigateToPath(path);
+                },
+                
+                navigateToPath(path) {
+                    if (this.currentPath === path) return;
+                    
+                    // 添加到历史
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.history = this.history.slice(0, this.historyIndex + 1);
+                    }
+                    this.history.push(path);
+                    this.historyIndex++;
+                    
+                    this.currentPath = path;
+                    this.selectedFiles = [];
+                    this.loadFiles();
+                    this.updateTreeSelection();
+                },
+                
+                navigateBack() {
+                    if (!this.canGoBack) return;
+                    this.historyIndex--;
+                    this.currentPath = this.history[this.historyIndex];
+                    this.selectedFiles = [];
+                    this.loadFiles();
+                    this.updateTreeSelection();
+                },
+                
+                navigateForward() {
+                    if (!this.canGoForward) return;
+                    this.historyIndex++;
+                    this.currentPath = this.history[this.historyIndex];
+                    this.selectedFiles = [];
+                    this.loadFiles();
+                    this.updateTreeSelection();
+                },
+                
+                navigateUp() {
+                    const parts = this.currentPath.split('/').filter(p => p);
+                    if (parts.length <= 1) return;
+                    parts.pop();
+                    const parentPath = '/' + parts.join('/');
+                    this.navigateToPath(parentPath);
+                },
+                
+                // ===== 目录树操作 =====
+                async expandRootNodes() {
+                    for (const root of this.rootNodes) {
+                        if (root.expanded) {
+                            await this.loadTreeNode(root);
+                        }
+                    }
+                },
+                
+                async loadTreeNode(node) {
+                    node.loading = true;
+                    try {
+                        const response = await this.apiRequest(`/files/?action=list&path=${encodeURIComponent(node.path)}`);
+                        const data = await response.json();
+                        if (data.code === 0) {
+                            node.children = data.data.items
+                                .filter(item => item.type === 'directory')
+                                .map(dir => ({
+                                    name: dir.name,
+                                    path: node.path + '/' + dir.name,
+                                    expanded: false,
+                                    hasChildren: true,
+                                    children: [],
+                                    loading: false,
+                                    level: (node.level || 0) + 1,
+                                    isDragOver: false
+                                }));
+                            node.hasChildren = node.children.length > 0;
+                        }
+                    } catch (e) {
+                        console.error('加载目录失败:', e);
+                    } finally {
+                        node.loading = false;
+                    }
+                },
+                
+                async toggleTreeNode(node) {
+                    if (!node.hasChildren) return;
+                    
+                    if (!node.expanded && node.children.length === 0) {
+                        await this.loadTreeNode(node);
+                    }
+                    node.expanded = !node.expanded;
+                },
+                
+                selectTreeNode(node) {
+                    this.navigateToPath(node.path);
+                },
+                
+                updateTreeSelection() {
+                    // 高亮当前路径对应的树节点
+                    for (const root of this.rootNodes) {
+                        this.updateNodeActive(root);
+                    }
+                },
+                
+                updateNodeActive(node) {
+                    node.active = node.path === this.currentPath;
+                    if (node.children) {
+                        for (const child of node.children) {
+                            this.updateNodeActive(child);
+                        }
+                    }
+                },
+                
+                expandAll() {
+                    for (const root of this.rootNodes) {
+                        root.expanded = true;
+                        this.loadTreeNode(root);
+                    }
+                },
+                
+                collapseAll() {
+                    for (const root of this.rootNodes) {
+                        root.expanded = false;
+                        root.children = [];
+                    }
+                },
+
+                refreshCurrentTree() {
+                    for (const root of this.rootNodes) {
+                        if (this.currentPath.startsWith(root.path)) {
+                            this.loadTreeNode(root);
+                            break;
+                        }
+                    }
+                },
+
+                // ===== 选择和点击 =====
+                handleRowClick(file, event) {
+                    if (event.ctrlKey || event.metaKey) {
+                        const idx = this.selectedFiles.indexOf(file.name);
+                        if (idx > -1) {
+                            this.selectedFiles = this.selectedFiles.filter(f => f !== file.name);
+                        } else {
+                            this.selectedFiles = [...this.selectedFiles, file.name];
+                        }
+                    } else if (event.shiftKey) {
+                        this.handleRangeSelect(file);
+                    } else {
+                        this.selectedFiles = [file.name];
+                    }
+                },
+                
+                handleRangeSelect(file) {
+                    if (this.selectedFiles.length === 0) {
+                        this.selectedFiles = [file.name];
+                        return;
+                    }
+                    
+                    const files = this.filteredFiles;
+                    const lastSelected = this.selectedFiles[this.selectedFiles.length - 1];
+                    const lastIdx = files.findIndex(f => f.name === lastSelected);
+                    const currentIdx = files.findIndex(f => f.name === file.name);
+                    
+                    if (lastIdx === -1 || currentIdx === -1) return;
+                    
+                    const start = Math.min(lastIdx, currentIdx);
+                    const end = Math.max(lastIdx, currentIdx);
+                    
+                    const toAdd = [];
+                    for (let i = start; i <= end; i++) {
+                        if (!this.selectedFiles.includes(files[i].name)) {
+                            toAdd.push(files[i].name);
+                        }
+                    }
+                    if (toAdd.length > 0) {
+                        this.selectedFiles = [...this.selectedFiles, ...toAdd];
+                    }
+                },
+                
+                toggleSelectAll(event) {
+                    if (event.target.checked) {
+                        this.selectedFiles = this.filteredFiles.map(f => f.name);
+                    } else {
+                        this.selectedFiles = [];
+                    }
+                },
+                
+                // ===== 双击和上下文菜单 =====
+                handleDblClick(file) {
+                    if (file.type === 'directory') {
+                        const newPath = this.currentPath + '/' + file.name;
+                        this.navigateToPath(newPath);
+                    } else {
+                        this.previewFile(file);
+                    }
+                },
+                
+                showContextMenu(event, file) {
+                    this.contextMenu = {
+                        show: true,
+                        x: event.clientX,
+                        y: event.clientY,
+                        file: file
+                    };
+                },
+                
+                openDirectory(file) {
+                    const newPath = this.currentPath + '/' + file.name;
+                    this.navigateToPath(newPath);
+                    this.contextMenu.show = false;
+                },
+                
+                openRenameDialog() {
+                    if (!this.contextMenu.file) return;
+                    this.renameTarget = {
+                        oldName: this.contextMenu.file.name,
+                        newName: this.contextMenu.file.name
+                    };
+                    this.showRenameDialog = true;
+                    this.contextMenu.show = false;
+                    this.$nextTick(() => {
+                        const input = this.$refs.renameInput;
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                    });
+                },
+                
+                // ===== 图标系统 =====
+                getFileIconClass(file) {
+                    if (file.type === 'directory') return 'text-yellow-500';
+                    const mediaType = this.getMediaType(file);
+                    if (mediaType === 'image') return 'text-purple-500';
+                    if (mediaType === 'audio') return 'text-pink-500';
+                    if (mediaType === 'video') return 'text-red-500';
+                    return 'text-gray-400';
+                },
+                
+                getFileIconPath(file) {
+                    if (file.type === 'directory') {
+                        return 'M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z';
+                    }
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const iconMap = {
+                        txt: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+                        pdf: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 15h6',
+                        zip: 'M21 8v13H3V8M1 3h22v5H1zM10 12h4',
+                        jpg: 'M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z',
+                        jpeg: 'M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z',
+                        png: 'M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z',
+                        mp3: 'M9 18V5l12-2v13 M6 18a3 3 0 1 0 6 0 3 3 0 0 0-6 0 M18 16a3 3 0 1 0 6 0 3 3 0 0 0-6 0',
+                        mp4: 'M23 7l-7 5 7 5V7z M2 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z'
+                    };
+                    return iconMap[ext] || 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8';
+                },
+                
+                // ===== 格式化 =====
+                formatDate(timestamp) {
+                    if (!timestamp || timestamp < 946656000) return '-';
+                    const date = new Date(timestamp * 1000);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+                
+                getStatusText() {
+                    const total = this.files.length;
+                    const folders = this.files.filter(f => f.type === 'directory').length;
+                    const files = total - folders;
+                    return `${total} 个项目 (${folders} 个文件夹, ${files} 个文件)`;
+                },
+                
+                // ===== 编辑器功能 =====
+                isEditableFile(file) {
+                    if (file.type === 'directory') return false;
+                    const editableExts = ['txt', 'log', 'csv', 'json', 'xml', 'yaml', 'yml', 'lua', 'py', 'js', 'sh', 'conf', 'cfg', 'ini', 'md', 'html', 'htm', 'css', 'sql', 'c', 'h', 'cpp', 'hpp'];
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    return editableExts.includes(ext);
+                },
+                
+                canPreviewFile(file) {
+                    if (file.type === 'directory') return false;
+                    return this.isEditableFile(file) || this.getMediaType(file);
+                },
+                
+                getMediaType(file) {
+                    if (!file || file.type === 'directory') return null;
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                    const audioExts = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'];
+                    const videoExts = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'webm'];
+                    const markdownExts = ['md', 'markdown', 'mdown'];
+
+                    if (imageExts.includes(ext)) return 'image';
+                    if (audioExts.includes(ext)) return 'audio';
+                    if (videoExts.includes(ext)) return 'video';
+                    if (markdownExts.includes(ext)) return 'markdown';
+                    return null;
+                },
+                
+                getLanguageMode(file) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const modeMap = { js: 'javascript', lua: 'lua', py: 'python', sh: 'shell', html: 'htmlmixed', htm: 'htmlmixed', xml: 'xml', css: 'css', yaml: 'yaml', yml: 'yaml', sql: 'sql', md: 'markdown', json: 'javascript' };
+                    return modeMap[ext] || 'text';
+                },
+                
+                getLanguageLabel(mode) {
+                    const labels = { javascript: 'JavaScript', lua: 'Lua', python: 'Python', shell: 'Shell', htmlmixed: 'HTML', xml: 'XML', css: 'CSS', yaml: 'YAML', sql: 'SQL', markdown: 'Markdown', text: '纯文本' };
+                    return labels[mode] || mode;
+                },
+                
+                getFullPath(fileName) {
+                    return this.currentPath + '/' + fileName;
+                },
+                
+                async editFile(file) {
+                    this.editor.file = file;
+                    this.editor.show = true;
+                    this.editor.saving = false;
+                    this.editor.isModified = false;
+                    this.editor.language = this.getLanguageMode(file);
+                    this.editor.showPreview = this.editor.language === 'markdown';
+
+                    try {
+                        const fullPath = this.getFullPath(file.name);
+                        const response = await this.apiRequest(`/files/?action=preview&path=${encodeURIComponent(fullPath)}`);
+                        const data = await response.json();
+
+                        if (data.code === 0) {
+                            this.editor.content = data.data.content || '';
+                            this.editor.originalContent = data.data.content || '';
+                            this.$nextTick(() => {
+                                const isSplit = this.editor.language === 'markdown' && this.editor.showPreview;
+                                const ta = document.getElementById(isSplit ? 'codeEditorSplit' : 'codeEditor');
+                                if (ta) {
+                                    ta.value = this.editor.content;
+                                    ta.scrollTop = 0;
+                                    ta.focus();
+                                    this.editor.cursorLine = 1;
+                                    this.editor.cursorCol = 1;
+                                }
+                                // Delay to ensure DOM is fully rendered
+                                setTimeout(() => this.updateLineNumbers(), 50);
+                            });
+                        } else {
+                            this.showToast('无法读取文件: ' + data.message, 'error');
+                            this.closeEditor();
+                        }
+                    } catch (e) {
+                        this.showToast('读取文件失败', 'error');
+                        this.closeEditor();
+                    }
+                },
+
+                updateCursorInfo(event) {
+                    const ta = event.target;
+                    const pos = ta.selectionStart;
+                    const text = ta.value.substring(0, pos);
+                    const lines = text.split('\n');
+                    this.editor.cursorLine = lines.length;
+                    this.editor.cursorCol = lines[lines.length - 1].length + 1;
+                },
+
+                syncEditorScroll() {
+                    const ta = document.getElementById('codeEditorSplit');
+                    const preview = document.getElementById('markdownPreview');
+                    if (!ta) return;
+                    const scrollRatio = ta.scrollTop / (ta.scrollHeight - ta.clientHeight || 1);
+                    if (preview) preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
+                },
+
+                updateLineNumbers() {
+                    const content = this.editor.content || '';
+                    const lines = content.split('\n');
+                    const lineCount = lines.length;
+                    const isSplit = this.editor.language === 'markdown' && this.editor.showPreview;
+                    const ln = document.getElementById(isSplit ? 'lineNumbersSplit' : 'lineNumbers');
+                    const ta = document.getElementById(isSplit ? 'codeEditorSplit' : 'codeEditor');
+                    if (!ln || !ta) return;
+                    const lh = 19.5;
+                    const paddingTop = parseFloat(window.getComputedStyle(ta).paddingTop) || 16;
+                    // Render ALL line numbers
+                    const curLine = this.editor.cursorLine || 1;
+                    let html = '';
+                    for (let i = 1; i <= lineCount; i++) {
+                        const isCur = i === curLine;
+                        const border = isCur ? 'border-left:3px solid #60a5fa;padding-left:5px;' : 'border-left:3px solid transparent;padding-left:5px;';
+                        const color = isCur ? 'color:#e2e8f0;font-weight:600;' : '';
+                        html += '<div style="height:' + lh + 'px;line-height:' + lh + 'px;' + border + color + '">' + i + '</div>';
+                    }
+                    ln.innerHTML = html;
+                    // Align with textarea: same padding, same scroll offset
+                    ln.style.paddingTop = paddingTop + 'px';
+                    ln.style.marginTop = '-' + ta.scrollTop + 'px';
+                },
+
+                async saveFile() {
+                    if (!this.editor.isModified || this.editor.saving) return;
+
+                    // Sync content from textarea
+                    const ta = this.$refs.codeEditor;
+                    if (ta) this.editor.content = ta.value;
+
+                    this.editor.saving = true;
+                    try {
+                        const filePath = this.getFullPath(this.editor.file.name);
+                        const response = await this.apiRequest('/files/', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'save',
+                                path: filePath,
+                                content: this.editor.content
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.code === 0) {
+                            this.editor.originalContent = this.editor.content;
+                            this.editor.isModified = false;
+                            this.showToast('保存成功', 'success');
+                            this.loadFiles();
+                        } else {
+                            this.showToast('保存失败: ' + data.message, 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('保存失败', 'error');
+                    } finally {
+                        this.editor.saving = false;
+                    }
+                },
+                
+                closeEditor() {
+                    if (this.editor.isModified) {
+                        if (!confirm('文件已修改，是否放弃保存？')) return;
+                    }
+
+                    this.editor.show = false;
+                    this.editor.file = null;
+                    this.editor.content = '';
+                    this.editor.originalContent = '';
+                    this.editor.isModified = false;
+                },
+                
+                // ===== 文件操作 =====
+                async downloadFile(file) {
+                    const fullPath = this.getFullPath(file.name);
+                    if (file.type === 'directory') {
+                        this.showToast('正在打包目录...', 'info');
+                        try {
+                            const response = await fetch(
+                                `/files/?action=pack&path=${encodeURIComponent(fullPath)}`,
+                                { method: 'POST' }
+                            );
+                            const data = await response.json();
+                            if (data.code === 0) {
+                                const link = document.createElement('a');
+                                link.href = `/files/?action=download&path=${encodeURIComponent(data.data.archive)}`;
+                                link.download = data.data.name;
+                                link.click();
+                                this.showToast(`开始下载 "${data.data.name}" (${data.data.size_formatted})`, 'success');
+                            } else {
+                                this.showToast(data.message || '打包失败', 'error');
+                            }
+                        } catch (e) {
+                            this.showToast('打包目录失败', 'error');
+                        }
+                    } else {
+                        const link = document.createElement('a');
+                        link.href = `/files/?action=download&path=${encodeURIComponent(fullPath)}`;
+                        link.download = file.name;
+                        link.click();
+                        this.showToast(`开始下载 "${file.name}"`, 'info');
+                    }
+                },
+                
+                // ===== 删除操作 =====
+                getDeleteMessage() {
+                    if (this.deleteTarget.isBatch) {
+                        return `确定要删除选中的 ${this.deleteTarget.files.length} 个项目吗？`;
+                    }
+                    return `确定要删除 "${this.deleteTarget.file?.name}" 吗？`;
+                },
+                
+                confirmDelete(file) {
+                    this.deleteTarget = { file, files: [], isBatch: false };
+                    this.showDeleteConfirm = true;
+                },
+                
+                async executeDelete() {
+                    this.showDeleteConfirm = false;
+                    
+                    if (this.deleteTarget.isBatch) {
+                        let successCount = 0;
+                        for (const name of this.deleteTarget.files) {
+                            const file = this.files.find(f => f.name === name);
+                            if (file) {
+                                try {
+                                    const fullPath = this.getFullPath(file.name);
+                                    const response = await fetch(
+                                        `/files/?path=${encodeURIComponent(fullPath)}&recursive=${file.type === 'directory'}`,
+                                        { method: 'DELETE' }
+                                    );
+                                    const data = await response.json();
+                                    if (data.code === 0) successCount++;
+                                } catch (e) {}
+                            }
+                        }
+                        this.selectedFiles = [];
+                        this.loadFiles();
+                        this.refreshCurrentTree();
+                        this.showToast(`已删除 ${successCount} 个项目`, successCount > 0 ? 'success' : 'error');
+                    } else {
+                        const file = this.deleteTarget.file;
+                        try {
+                            const fullPath = this.getFullPath(file.name);
+                            const response = await fetch(
+                                `/files/?path=${encodeURIComponent(fullPath)}&recursive=${file.type === 'directory'}`,
+                                { method: 'DELETE' }
+                            );
+                            const data = await response.json();
+
+                            if (data.code === 0) {
+                                this.showToast('删除成功', 'success');
+                                this.loadFiles();
+                                this.refreshCurrentTree();
+                            } else {
+                                this.showToast(data.message, 'error');
+                            }
+                        } catch (e) {
+                            this.showToast('删除失败', 'error');
+                        }
+                    }
+                },
+                
+                // ===== 批量操作 =====
+                batchDelete() {
+                    if (this.selectedFiles.length === 0) return;
+                    this.deleteTarget = { file: null, files: [...this.selectedFiles], isBatch: true };
+                    this.showDeleteConfirm = true;
+                },
+
+                async batchDownload() {
+                    if (this.selectedFiles.length === 0) return;
+                    this.showToast('正在打包下载...', 'info');
+                    try {
+                        const items = this.selectedFiles.map(name => {
+                            const file = this.files.find(f => f.name === name);
+                            return file ? this.getFullPath(file.name) : null;
+                        }).filter(Boolean);
+                        const response = await this.apiRequest('/files/', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'pack_batch', items: items })
+                        });
+                        const data = await response.json();
+                        if (data.code === 0) {
+                            const link = document.createElement('a');
+                            link.href = `/files/?action=download&path=${encodeURIComponent(data.data.archive)}`;
+                            link.download = data.data.name;
+                            link.click();
+                            this.showToast(`已下载 ${data.data.name}`, 'success');
+                        } else {
+                            this.showToast(data.message || '打包失败', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('打包下载失败', 'error');
+                    }
+                },
+
+                // ===== 创建目录 =====
+                async createDirectory() {
+                    if (!this.newDirName.trim()) return;
+                    
+                    try {
+                        const fullPath = this.getFullPath(this.newDirName);
+                        const response = await fetch(
+                            `/files/?path=${encodeURIComponent(fullPath)}&action=mkdir`,
+                            { method: 'POST' }
+                        );
+                        const data = await response.json();
+                        
+                        if (data.code === 0) {
+                            this.showToast('目录创建成功', 'success');
+                            this.showMkdirDialog = false;
+                            this.newDirName = '';
+                            this.loadFiles();
+                            // 刷新树
+                            for (const root of this.rootNodes) {
+                                if (this.currentPath.startsWith(root.path)) {
+                                    root.expanded = true;
+                                    await this.loadTreeNode(root);
+                                }
+                            }
+                        } else {
+                            this.showToast(data.message, 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('创建目录失败', 'error');
+                    }
+                },
+                
+                // ===== 重命名 =====
+                async renameFile() {
+                    if (!this.renameTarget.newName.trim() || !this.contextMenu.file) return;
+                    
+                    try {
+                        const srcPath = this.getFullPath(this.contextMenu.file.name);
+                        const dstPath = this.getFullPath(this.renameTarget.newName);
+                        const response = await this.apiRequest('/files/', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'rename', src: srcPath, dst: dstPath })
+                        });
+                        const data = await response.json();
+                        
+                        if (data.code === 0) {
+                            this.showToast('重命名成功', 'success');
+                            this.showRenameDialog = false;
+                            this.loadFiles();
+                        } else {
+                            this.showToast(data.message, 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('重命名失败', 'error');
+                    }
+                },
+                
+                // ===== 预览 =====
+                async previewFile(file) {
+                    this.preview.file = file;
+                    this.preview.show = true;
+                    this.preview.loading = true;
+                    this.preview.mediaType = this.getMediaType(file);
+                    this.preview.url = `/files/?action=download&path=${encodeURIComponent(this.getFullPath(file.name))}`;
+                    this.preview.renderedContent = '';
+
+                    if (this.preview.mediaType && this.preview.mediaType !== 'markdown') {
+                        this.preview.loading = false;
+                        return;
+                    }
+
+                    try {
+                        const fullPath = this.getFullPath(file.name);
+                        const response = await this.apiRequest(`/files/?action=preview&path=${encodeURIComponent(fullPath)}`);
+                        const data = await response.json();
+
+                        if (data.code === 0) {
+                            this.preview.content = data.data.content;
+                            this.preview.truncated = data.data.truncated;
+                            // Render markdown
+                            if (this.preview.mediaType === 'markdown' && typeof marked !== 'undefined') {
+                                this.preview.renderedContent = marked.parse(data.data.content || '');
+                            }
+                        } else {
+                            this.showToast(data.message, 'error');
+                            this.closePreview();
+                        }
+                    } catch (e) {
+                        this.showToast('预览加载失败', 'error');
+                        this.closePreview();
+                    } finally {
+                        this.preview.loading = false;
+                    }
+                },
+                
+                closePreview() {
+                    this.preview.show = false;
+                    this.preview.file = null;
+                    this.preview.content = '';
+                    this.preview.url = '';
+                    this.preview.mediaType = null;
+                },
+                
+                
+                // ===== 拖拽操作 =====
+                handleDragStart(event, file) {
+                    event.dataTransfer.setData('text/plain', file.name);
+                    event.dataTransfer.effectAllowed = 'move';
+                },
+                
+                handleDragEnd(event) {
+                    // 清理
+                },
+                
+                handleTreeDragOver(event, node) {
+                    event.preventDefault();
+                    node.isDragOver = true;
+                },
+                
+                handleTreeDragLeave(event) {
+                    // 清理拖拽状态
+                    for (const root of this.rootNodes) {
+                        this.clearDragOver(root);
+                    }
+                },
+                
+                clearDragOver(node) {
+                    node.isDragOver = false;
+                    if (node.children) {
+                        for (const child of node.children) {
+                            this.clearDragOver(child);
+                        }
+                    }
+                },
+                
+                async handleTreeDrop(event, targetNode) {
+                    event.preventDefault();
+                    if (targetNode) targetNode.isDragOver = false;
+                    
+                    const fileName = event.dataTransfer.getData('text/plain');
+                    if (!fileName || !targetNode) return;
+                    
+                    const targetPath = targetNode.path + '/' + fileName;
+                    const sourcePath = this.getFullPath(fileName);
+                    
+                    if (sourcePath === targetPath) return;
+                    
+                    try {
+                        const response = await this.apiRequest('/files/', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'move', src: sourcePath, dst: targetPath })
+                        });
+                        const data = await response.json();
+                        
+                        if (data.code === 0) {
+                            this.showToast('移动成功', 'success');
+                            this.loadFiles();
+                        } else {
+                            this.showToast(data.message, 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('移动失败', 'error');
+                    }
+                },
+                
+                // ===== 键盘事件 =====
+                handleMkdirKeydown(event) {
+                    if (event.key === 'Enter') this.createDirectory();
+                    else if (event.key === 'Escape') this.showMkdirDialog = false;
+                },
+                
+                handleRenameKeydown(event) {
+                    if (event.key === 'Enter') this.renameFile();
+                    else if (event.key === 'Escape') this.showRenameDialog = false;
+                },
+                
+                handleGlobalKeydown(event) {
+                    if (event.key === 'F5') {
+                        event.preventDefault();
+                        this.loadFiles();
+                    } else if (event.key === 'Delete' && this.selectedFiles.length > 0) {
+                        event.preventDefault();
+                        this.deleteTarget = { file: null, files: this.selectedFiles, isBatch: true };
+                        this.showDeleteConfirm = true;
+                    } else if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+                        event.preventDefault();
+                        this.selectedFiles = this.filteredFiles.map(f => f.name);
+                    } else if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+                        event.preventDefault();
+                        document.querySelector('input[type="search"]')?.focus();
+                    } else if (event.key === 'Escape') {
+                        this.showMkdirDialog = false;
+                        this.showRenameDialog = false;
+                        this.showDeleteConfirm = false;
+                        this.preview.show = false;
+                        this.selectedFiles = [];
+                    }
+                },
+                
+                // ===== 上传 =====
+                triggerFileUpload() {
+                    document.getElementById('fileInput')?.click();
+                },
+                
+                handleFileSelect(event) {
+                    const files = event.target.files;
+                    if (files.length > 0) {
+                        this.uploadFiles(files);
+                    }
+                    event.target.value = '';
+                },
+                
+                handleDrop(event) {
+                    this.dragOver = false;
+                    const files = event.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.uploadFiles(files);
+                    }
+                },
+                
+                async uploadFiles(files) {
+                    for (const file of files) {
+                        const uploadId = Date.now() + Math.random();
+                        const uploadItem = { id: uploadId, name: file.name, progress: 0, status: 'uploading' };
+                        this.uploads.push(uploadItem);
+                        
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        const xhr = new XMLHttpRequest();
+                        
+                        xhr.upload.addEventListener('progress', (e) => {
+                            if (e.lengthComputable) {
+                                uploadItem.progress = Math.round((e.loaded / e.total) * 100);
+                            }
+                        });
+                        
+                        xhr.addEventListener('load', () => {
+                            if (xhr.status === 200) {
+                                const data = JSON.parse(xhr.responseText);
+                                if (data.code === 0) {
+                                    uploadItem.status = 'completed';
+                                    this.showToast(`"${file.name}" 上传成功`, 'success');
+                                    this.loadFiles();
+                                } else {
+                                    uploadItem.status = 'error';
+                                    this.showToast(data.message, 'error');
+                                }
+                            }
+                            setTimeout(() => this.removeUpload(uploadId), 3000);
+                        });
+                        
+                        xhr.open('POST', `/files/?path=${encodeURIComponent(this.currentPath)}&action=upload&filename=${encodeURIComponent(file.name)}`);
+                        xhr.send(formData);
+                    }
+                },
+                
+                removeUpload(id) {
+                    const idx = this.uploads.findIndex(u => u.id === id);
+                    if (idx > -1) this.uploads.splice(idx, 1);
+                },
+                
+                // ===== 搜索和排序 =====
+                handleSearch() {
+                    this.selectedFiles = [];
+                },
+                
+                setSort(field) {
+                    if (this.sortBy === field) {
+                        this.sortDesc = !this.sortDesc;
+                    } else {
+                        this.sortBy = field;
+                        this.sortDesc = false;
+                    }
+                },
+                
+                // ===== Toast =====
+                showToast(message, type = 'info') {
+                    const id = Date.now();
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => {
+                        const idx = this.toasts.findIndex(t => t.id === id);
+                        if (idx > -1) this.toasts.splice(idx, 1);
+                    }, 3000);
+                },
+                
+                getToastIcon(type) {
+                    const icons = {
+                        success: '<path d="M5 13l4 4L19 7"/>',
+                        error: '<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>',
+                        info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+                        warning: '<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>'
+                    };
+                    return icons[type] || icons.info;
+                }
+            }
+        }
+
+    // 拦截下载链接点击，通知 Tauri
+    document.addEventListener('click', async (e) => {
+        const a = e.target.closest('a[href*="action=download"]');
+        if (!a) return;
+
+        e.preventDefault();
+
+        // 从 URL 中解析出文件路径
+        const url = new URL(a.href);
+        const filePath = url.searchParams.get('path');
+        const fileName = filePath.split('/').pop();
+
+        // 通知 Tauri
+        window.parent.postMessage({
+        type: 'file-download',
+        path: filePath,
+        name: fileName
+        }, '*');
+    });    
+    </script>
+</body>
+</html>
