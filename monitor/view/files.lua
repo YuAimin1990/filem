@@ -1076,6 +1076,17 @@ function _M.PUT()
     ngx.req.read_body()
     local body = ngx.req.get_body_data()
     if not body then
+        -- body 被缓存到临时文件，需要从文件读取
+        local body_file = ngx.req.get_body_file()
+        if body_file then
+            local bf = io.open(body_file, "rb")
+            if bf then
+                body = bf:read("*all")
+                bf:close()
+            end
+        end
+    end
+    if not body then
         return json_response({ code = -400, message = "Missing request body" }, 400)
     end
     
