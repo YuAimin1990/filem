@@ -593,63 +593,42 @@ function _M.handle_upload(path, filename)
     if not file then
         return json_response({ code = -500, message = "无法创建临时文件" }, 500)
     end
-    
+
     -- 获取Content-Length
     local content_length = tonumber(ngx.var.http_content_length) or 0
-    
+
     if content_length > LIMITS.upload then
         file:close()
         os.remove(tmp_file)
         return json_response({ code = -413, message = "文件过大 (最大100MB)" }, 413)
     end
-    
-    -- 读取请求体
-    ngx.req.read_body()
-    local body = ngx.req.get_body_data()
-    
-    if not body then
-        -- 尝试从临时文件读取
-        local body_file = ngx.req.get_body_file()
-        if body_file then
-            local bf = io.open(body_file, "rb")
-            if bf then
-                body = bf:read("*all")
-                bf:close()
-            end
-        end
-    end
-    
-    if not body or #body == 0 then
+
+    -- 使用 resty.upload 解析 multipart/form-data
+    local upload = require "resty.upload"
+    local chunk_size = 4096
+    local form, err = upload:new(chunk_size)
+    if not form then
         file:close()
         os.remove(tmp_file)
-        return json_response({ code = -400, message = "没有接收到文件数据" }, 400)
+        return json_response({ code = -500, message = "无法解析上传数据: " .. (err or "") }, 500)
     end
-    
-    -- 对于multipart，尝试提取文件内容
-    -- 检查是否包含 multipart boundary
-    local file_content = body
-    local boundary = body:match("%-%-(%w+)[%s\r\n]")
-    if boundary then
-        -- multipart 格式：从第一个 \r\n\r\n 后提取内容
-        local content_start = body:find("\r\n\r\n")
-        if content_start then
-            file_content = body:sub(content_start + 4)
-            -- 去除开头可能的 multipart 头（Content-Disposition 等行）
-            local header_end = file_content:find("\r\n\r\n")
-            if header_end then
-                file_content = file_content:sub(header_end + 4)
-            end
-            -- 去除末尾的 boundary（格式：\r\n--boundary--）
-            local last_boundary = file_content:find("\r\n%-%-" .. boundary .. "%-%-")
-            if last_boundary then
-                file_content = file_content:sub(1, last_boundary - 1)
-            end
-            -- 去除末尾可能的空白和换行
-            file_content = file_content:gsub("[%s\r\n]+$", "")
+
+    local total_size = 0
+    while true do
+        local typ, res, err2 = form:read()
+        if not typ then
+            file:close()
+            os.remove(tmp_file)
+            return json_response({ code = -500, message = "读取上传数据失败: " .. (err2 or "") }, 500)
+        end
+        if typ == "body" then
+            file:write(res)
+            total_size = total_size + #res
+        elseif typ == "eof" then
+            break
         end
     end
-    
-    local total_size = #file_content
+    file:close()
     
     local size_valid, size_err = _M.validate_upload_size(total_size)
     if not size_valid then
