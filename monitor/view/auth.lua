@@ -10,8 +10,9 @@ local _M = {}
 
 -- 配置
 local SESSION_TTL = 86400  -- 24小时
-local USER_DATA_FILE = "/awork/fm/monitor/data/users.jsonl"
-local PERM_DATA_FILE = "/awork/fm/monitor/data/permissions.jsonl"
+local APP_ROOT = ngx.shared.sidebar_config and ngx.shared.sidebar_config:get("APP_ROOT") or os.getenv("APP_ROOT") or "/awork/fm"
+local USER_DATA_FILE = APP_ROOT .. "/monitor/data/users.jsonl"
+local PERM_DATA_FILE = APP_ROOT .. "/monitor/data/permissions.jsonl"
 local SESSION_DICT = ngx.shared.user_sessions
 
 -- 权限级别：read < write < delete < admin
@@ -86,7 +87,7 @@ end
 
 -- 确保数据目录存在
 local function ensure_data_dir()
-    local cmd = "mkdir -p /awork/fm/monitor/data"
+    local cmd = "mkdir -p " .. APP_ROOT .. "/monitor/data"
     os.execute(cmd)
 end
 

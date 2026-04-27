@@ -4,8 +4,9 @@
 数据格式: JSONL (每行一个 JSON 对象)
 ]]
 
-local data_file = "/awork/fm/monitor/data/monitor.jsonl"
-local cpu_state_file = "/awork/fm/monitor/data/cpu_state.json"
+local app_root = os.getenv("APP_ROOT") or "/awork/fm"
+local data_file = app_root .. "/monitor/data/monitor.jsonl"
+local cpu_state_file = app_root .. "/monitor/data/cpu_state.json"
 local max_lines = 1000
 
 -- 执行 shell 命令并返回输出

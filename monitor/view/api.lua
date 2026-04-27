@@ -2,7 +2,8 @@ local cjson = require "cjson"
 
 local _M = {}
 
-local DATA_DIR = "/awork/fm/monitor/data"
+local APP_ROOT = ngx.shared.sidebar_config and ngx.shared.sidebar_config:get("APP_ROOT") or os.getenv("APP_ROOT") or "/awork/fm"
+local DATA_DIR = APP_ROOT .. "/monitor/data"
 local DATA_FILE = DATA_DIR .. "/monitor.jsonl"
 local STATE_FILE = DATA_DIR .. "/monitor_state.json"
 
@@ -379,7 +380,7 @@ function _M.GET()
     end
 end
 
-local COLLECT_SCRIPT = "/awork/fm/monitor/collect_data.lua"
+local COLLECT_SCRIPT = APP_ROOT .. "/monitor/collect_data.lua"
 local CRON_TAG = "xserver_monitor"
 
 -- 读取 crontab 内容（不含标记行）

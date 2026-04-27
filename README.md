@@ -81,7 +81,7 @@ fm/
 ## 快速启动
 
 ```bash
-cd /awork/fm
+cd /path/to/fm
 bash start.sh
 ```
 

@@ -127,37 +127,43 @@ monitor/
 lua_shared_dict user_sessions 2m;  # session 存储
 ```
 
-在 `running/conf/site.conf` 中配置路由：
+在 `running/conf/nginx.conf` 中配置应用根目录：
+
+```nginx
+env APP_ROOT=/path/to/fm;
+```
+
+在 `running/conf/site.conf` 中配置路由（使用相对路径）：
 
 ```nginx
 # Monitor module routes
 location /monitor/api {
     default_type 'application/json';
-    content_by_lua_file /awork/fm/monitor/view/api.lua;
+    content_by_lua_file ../monitor/view/api.lua;
 }
 
 # Auth API
 location /api/auth {
     default_type 'application/json';
-    content_by_lua_file /awork/fm/monitor/view/auth_entry.lua;
+    content_by_lua_file ../monitor/view/auth_entry.lua;
 }
 
 # User management API (admin only)
 location /api/users {
     default_type 'application/json';
-    content_by_lua_file /awork/fm/monitor/view/users_entry.lua;
+    content_by_lua_file ../monitor/view/users_entry.lua;
 }
 
 # Permission API
 location /api/permissions {
     default_type 'application/json';
-    content_by_lua_file /awork/fm/monitor/view/perms_entry.lua;
+    content_by_lua_file ../monitor/view/perms_entry.lua;
 }
 
 # File manager API
 location ^~ /files/ {
     default_type 'application/json';
-    content_by_lua_file /awork/fm/monitor/view/files_entry.lua;
+    content_by_lua_file ../monitor/view/files_entry.lua;
 }
 
 location /monitor/ {

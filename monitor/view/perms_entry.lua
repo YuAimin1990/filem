@@ -7,6 +7,9 @@ PUT  /api/permissions         - 设置权限
 local cjson = require "cjson"
 local auth = require "monitor.view.auth"
 
+local APP_ROOT = ngx.shared.sidebar_config and ngx.shared.sidebar_config:get("APP_ROOT") or os.getenv("APP_ROOT") or "/awork/fm"
+local PERM_DATA_FILE = APP_ROOT .. "/monitor/data/permissions.jsonl"
+
 local method = ngx.req.get_method()
 
 local function json_response(data, status)
@@ -112,7 +115,7 @@ elseif method == "PUT" then
 
         -- 保存
         local perms = {}
-        local file = io.open("/awork/fm/monitor/data/permissions.jsonl", "r")
+        local file = io.open(PERM_DATA_FILE, "r")
         if file then
             for line in file:lines() do
                 if line and line ~= "" then
@@ -126,7 +129,7 @@ elseif method == "PUT" then
         end
 
         perms[path] = perm
-        file = io.open("/awork/fm/monitor/data/permissions.jsonl", "w")
+        file = io.open(PERM_DATA_FILE, "w")
         if file then
             for _, p in pairs(perms) do
                 file:write(cjson.encode(p) .. "\n")
@@ -171,7 +174,7 @@ elseif method == "PUT" then
 
         -- 保存
         local perms = {}
-        local file = io.open("/awork/fm/monitor/data/permissions.jsonl", "r")
+        local file = io.open(PERM_DATA_FILE, "r")
         if file then
             for line in file:lines() do
                 if line and line ~= "" then
@@ -185,7 +188,7 @@ elseif method == "PUT" then
         end
 
         perms[path] = perm
-        file = io.open("/awork/fm/monitor/data/permissions.jsonl", "w")
+        file = io.open(PERM_DATA_FILE, "w")
         if file then
             for _, p in pairs(perms) do
                 file:write(cjson.encode(p) .. "\n")
