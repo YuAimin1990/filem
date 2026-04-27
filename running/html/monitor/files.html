@@ -750,6 +750,14 @@
                 </svg>
                 <span class="hidden sm:inline">新建目录</span>
             </button>
+
+            <!-- 新建文件 -->
+            <button @click="showNewFileDialog = true" class="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center gap-1 transition-colors">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>
+                </svg>
+                <span class="hidden sm:inline">新建文件</span>
+            </button>
             
             <!-- 上传 -->
             <button @click="triggerFileUpload()" class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-1 transition-colors">
@@ -1156,6 +1164,35 @@
         </div>
     </div>
 
+    <!-- ===== 新建文件对话框 ===== -->
+    <div x-show="showNewFileDialog" class="dialog-overlay" @click.self="showNewFileDialog = false">
+        <div class="dialog-box">
+            <h3 class="dialog-title">
+                <svg class="icon icon-lg text-indigo-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>
+                </svg>
+                新建文件
+            </h3>
+            <input type="text"
+                   x-model="newFileName"
+                   x-ref="newFileInput"
+                   @keydown="if(event.key==='Enter')createNewFile();else if(event.key==='Escape')showNewFileDialog=false;"
+                   x-effect="if(showNewFileDialog){newFileName='';$nextTick(()=>$refs.newFileInput?.focus())}"
+                   placeholder="请输入文件名（如 note.txt、readme.md）"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   @keydown="if(event.key==='Enter')createNewFile();else if(event.key==='Escape')showNewFileDialog=false;">
+            <div class="dialog-actions">
+                <button @click="showNewFileDialog = false" class="dialog-btn dialog-btn-secondary">取消</button>
+                <button @click="createNewFile()"
+                        class="dialog-btn dialog-btn-primary"
+                        :disabled="!newFileName.trim()"
+                        :class="{ 'opacity-50 cursor-not-allowed': !newFileName.trim() }">
+                    创建并编辑
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== 重命名对话框 ===== -->
     <div x-show="showRenameDialog" class="dialog-overlay" @click.self="showRenameDialog = false">
         <div class="dialog-box">
@@ -1411,9 +1448,11 @@
                 
                 // 对话框状态
                 showMkdirDialog: false,
+                showNewFileDialog: false,
                 showRenameDialog: false,
                 showDeleteConfirm: false,
                 newDirName: '',
+                newFileName: '',
                 renameTarget: { oldName: '', newName: '' },
                 deleteTarget: { file: null, files: [], isBatch: false },
                 
@@ -2213,7 +2252,55 @@
                         this.showToast('创建目录失败', 'error');
                     }
                 },
-                
+
+                // ===== 新建文件 =====
+                async createNewFile() {
+                    if (!this.newFileName.trim()) return;
+                    const fileName = this.newFileName.trim();
+                    const fullPath = this.getFullPath(fileName);
+
+                    // 检查文件是否已存在
+                    const existing = this.files.find(f => f.name === fileName);
+                    if (existing) {
+                        this.showToast('文件已存在', 'error');
+                        return;
+                    }
+
+                    try {
+                        // 创建空文件
+                        const response = await this.apiRequest('/files/', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'save', path: fullPath, content: '' })
+                        });
+                        const data = await response.json();
+
+                        if (data.code === 0) {
+                            this.showNewFileDialog = false;
+                            this.newFileName = '';
+                            this.showToast('文件已创建', 'success');
+                            // 刷新文件列表
+                            await this.loadFiles();
+                            // 刷新树
+                            for (const root of this.rootNodes) {
+                                if (this.currentPath.startsWith(root.path)) {
+                                    root.expanded = true;
+                                    await this.loadTreeNode(root);
+                                }
+                            }
+                            // 直接打开编辑器
+                            const file = this.files.find(f => f.name === fileName);
+                            if (file) {
+                                this.editFile(file);
+                            }
+                        } else {
+                            this.showToast(data.message || '创建文件失败', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('创建文件失败', 'error');
+                    }
+                },
+
                 // ===== 重命名 =====
                 async renameFile() {
                     if (!this.renameTarget.newName.trim() || !this.contextMenu.file) return;
