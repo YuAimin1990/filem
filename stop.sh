@@ -1,7 +1,7 @@
 #!/bin/bash
 PID_FILE="running/logs/nginx.pid"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-export LD_LIBRARY_PATH="${SCRIPT_DIR}/openresty/lualib:$LD_LIBRARY_PATH:lib:Linux-x86_64"
+export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib_Linux_x86-64:${LD_LIBRARY_PATH}"
 
 # 优先通过 nginx -s stop 优雅退出（发送 SIGTERM，等待 worker 处理完请求）
 if [ -f "$PID_FILE" ]; then

@@ -1,3 +1,6 @@
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib_Linux_x86-64:${LD_LIBRARY_PATH}"
+
 NGINX_BIN="openresty/nginx/sbin/nginx"
 NGINX_PREFIX="running/"
 NGINX_CONF="${NGINX_PREFIX}conf/nginx.conf"
