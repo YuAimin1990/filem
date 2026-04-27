@@ -1007,7 +1007,7 @@ function _M.POST()
     local path = ngx.var.arg_path or "/usrdata"
     
     if action == "upload" then
-        local filename = ngx.var.arg_filename
+        local filename = url_decode(ngx.var.arg_filename) or ngx.var.arg_filename
         return _M.handle_upload(path, filename)
     elseif action == "mkdir" then
         return _M.handle_mkdir(path)
