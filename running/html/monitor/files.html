@@ -2288,10 +2288,27 @@
                                     await this.loadTreeNode(root);
                                 }
                             }
-                            // 直接打开编辑器
+                            // 直接打开编辑器（空文件，跳过 preview）
                             const file = this.files.find(f => f.name === fileName);
                             if (file) {
-                                this.editFile(file);
+                                this.editor.file = file;
+                                this.editor.show = true;
+                                this.editor.saving = false;
+                                this.editor.isModified = false;
+                                this.editor.language = this.getLanguageMode(file);
+                                this.editor.showPreview = this.editor.language === 'markdown';
+                                this.editor.content = '';
+                                this.editor.originalContent = '';
+                                this.$nextTick(() => {
+                                    const ta = document.getElementById('codeEditor');
+                                    if (ta) {
+                                        ta.value = '';
+                                        ta.focus();
+                                    }
+                                    this.editor.cursorLine = 1;
+                                    this.editor.cursorCol = 1;
+                                    setTimeout(() => this.updateLineNumbers(), 50);
+                                });
                             }
                         } else {
                             this.showToast(data.message || '创建文件失败', 'error');
