@@ -1270,19 +1270,6 @@
             <!-- 图片预览 -->
             <div x-show="preview.mediaType === 'image'" 
                  class="flex-1 bg-gray-800 relative">
-                <!-- 缩放控件 - 固定定位，不随图片滚动 -->
-                <div class="absolute bottom-4 right-4 z-10 flex items-center gap-0.5 bg-black/60 backdrop-blur rounded-lg p-1.5 shadow-lg">
-                    <button @click="previewImageZoomOut"
-                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
-                            :class="preview.imageZoom <= 0.25 ? 'opacity-40 cursor-not-allowed' : ''">−</button>
-                    <span class="text-white text-xs px-1.5 min-w-[46px] text-center tabular-nums select-none"
-                          x-text="Math.round(preview.imageZoom * 100) + '%'"></span>
-                    <button @click="previewImageZoomIn"
-                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
-                            :class="preview.imageZoom >= 10 ? 'opacity-40 cursor-not-allowed' : ''">+</button>
-                    <button @click="previewImageZoomReset"
-                            class="px-2 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-xs select-none ml-1">1:1</button>
-                </div>
                 <div class="w-full h-full overflow-auto"
                      x-ref="imgContainer"
                      @wheel.prevent="previewImageZoomWheel"
@@ -1296,6 +1283,19 @@
                              class="select-none transition-transform duration-150"
                              @dragstart.prevent>
                     </div>
+                </div>
+                <!-- 缩放控件 - 固定定位，在滚动区域之后确保可见 -->
+                <div class="absolute bottom-4 right-4 z-10 flex items-center gap-0.5 bg-black/60 backdrop-blur rounded-lg p-1.5 shadow-lg pointer-events-auto">
+                    <button @click="previewImageZoomOut"
+                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
+                            :class="preview.imageZoom <= 0.25 ? 'opacity-40 cursor-not-allowed' : ''">−</button>
+                    <span class="text-white text-xs px-1.5 min-w-[46px] text-center tabular-nums select-none"
+                          x-text="Math.round(preview.imageZoom * 100) + '%'"></span>
+                    <button @click="previewImageZoomIn"
+                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
+                            :class="preview.imageZoom >= 10 ? 'opacity-40 cursor-not-allowed' : ''">+</button>
+                    <button @click="previewImageZoomReset"
+                            class="px-2 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-xs select-none ml-1">1:1</button>
                 </div>
             </div>
 
