@@ -632,13 +632,9 @@ function _M.handle_upload(path, filename)
     
     local size_valid, size_err = _M.validate_upload_size(total_size)
     if not size_valid then
-        file:close()
         os.remove(tmp_file)
         return json_response({ code = -413, message = size_err }, 413)
     end
-    
-    file:write(file_content)
-    file:close()
 
     -- 移动到目标位置
     local cp_ok = exec_cmd(string.format("cp '%s' '%s' 2>/dev/null", tmp_file:gsub("'", "'\\''"), full_path:gsub("'", "'\\''")))
