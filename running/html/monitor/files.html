@@ -1268,8 +1268,33 @@
             </div>
             
             <!-- 图片预览 -->
-            <div x-show="preview.mediaType === 'image'" class="flex-1 overflow-auto p-4 bg-gray-800 flex items-center justify-center">
-                <img :src="preview.url" class="max-w-full max-h-full object-contain">
+            <div x-show="preview.mediaType === 'image'" 
+                 x-ref="imgContainer"
+                 class="flex-1 overflow-auto bg-gray-800 relative"
+                 @wheel.prevent="previewImageZoomWheel"
+                 @mousedown="previewImageDragStart"
+                 @mousemove="previewImageDragMove"
+                 @mouseup="previewImageDragEnd"
+                 @mouseleave="previewImageDragEnd">
+                <!-- 缩放控件 -->
+                <div class="absolute bottom-4 right-4 z-10 flex items-center gap-0.5 bg-black/60 backdrop-blur rounded-lg p-1.5 shadow-lg">
+                    <button @click="previewImageZoomOut"
+                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
+                            :class="preview.imageZoom <= 0.25 ? 'opacity-40 cursor-not-allowed' : ''">−</button>
+                    <span class="text-white text-xs px-1.5 min-w-[46px] text-center tabular-nums select-none"
+                          x-text="Math.round(preview.imageZoom * 100) + '%'"></span>
+                    <button @click="previewImageZoomIn"
+                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
+                            :class="preview.imageZoom >= 10 ? 'opacity-40 cursor-not-allowed' : ''">+</button>
+                    <button @click="previewImageZoomReset"
+                            class="px-2 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-xs select-none ml-1">1:1</button>
+                </div>
+                <div class="min-w-full min-h-full flex items-center justify-center p-8">
+                    <img :src="preview.url" 
+                         :style="'transform: scale(' + preview.imageZoom + '); cursor: ' + (preview.imageZoom > 1 ? 'grab' : 'default')"
+                         class="select-none transition-transform duration-150"
+                         @dragstart.prevent>
+                </div>
             </div>
 
             <!-- 音频预览 -->
@@ -1465,7 +1490,7 @@
                 contextMenu: { show: false, x: 0, y: 0, file: null },
                 
                 // 预览
-                preview: { show: false, file: null, content: '', renderedContent: '', url: '', mediaType: null, loading: false, truncated: false },
+                preview: { show: false, file: null, content: '', renderedContent: '', url: '', mediaType: null, loading: false, truncated: false, imageZoom: 1, imageDragging: false, imageDragX: 0, imageDragY: 0 },
                 
                 // 编辑器
                 editor: {
@@ -2362,6 +2387,7 @@
                         this.preview.url += '&inline=true';
                     }
                     this.preview.renderedContent = '';
+                    this.preview.imageZoom = 1;
 
                     if (this.preview.mediaType && this.preview.mediaType !== 'markdown') {
                         this.preview.loading = false;
@@ -2398,9 +2424,45 @@
                     this.preview.content = '';
                     this.preview.url = '';
                     this.preview.mediaType = null;
+                    this.preview.imageZoom = 1;
+                    this.preview.imageDragging = false;
                 },
-                
-                
+
+                // ===== 图片缩放 =====
+                previewImageZoomIn() {
+                    this.preview.imageZoom = Math.min(10, this.preview.imageZoom + 0.25);
+                },
+                previewImageZoomOut() {
+                    this.preview.imageZoom = Math.max(0.25, this.preview.imageZoom - 0.25);
+                },
+                previewImageZoomReset() {
+                    this.preview.imageZoom = 1;
+                },
+                previewImageZoomWheel(event) {
+                    event.preventDefault();
+                    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+                    this.preview.imageZoom = Math.min(10, Math.max(0.25, this.preview.imageZoom + delta));
+                },
+                previewImageDragStart(event) {
+                    if (this.preview.imageZoom <= 1) return;
+                    this.preview.imageDragging = true;
+                    this.preview.imageDragX = event.clientX;
+                    this.preview.imageDragY = event.clientY;
+                    const el = this.$refs.imgContainer;
+                    this._dragScrollLeft = el.scrollLeft;
+                    this._dragScrollTop = el.scrollTop;
+                },
+                previewImageDragMove(event) {
+                    if (!this.preview.imageDragging) return;
+                    const el = this.$refs.imgContainer;
+                    el.scrollLeft = this._dragScrollLeft - (event.clientX - this.preview.imageDragX);
+                    el.scrollTop = this._dragScrollTop - (event.clientY - this.preview.imageDragY);
+                },
+                previewImageDragEnd() {
+                    this.preview.imageDragging = false;
+                },
+
+
                 // ===== 拖拽操作 =====
                 handleDragStart(event, file) {
                     event.dataTransfer.setData('text/plain', file.name);
