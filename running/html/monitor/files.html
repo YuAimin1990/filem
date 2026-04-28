@@ -1513,6 +1513,28 @@
                 
                 // ===== 初始化 =====
                 async init() {
+                    // 监听浏览器后退，关闭模态窗口而不是离开页面
+                    window.addEventListener('popstate', () => {
+                        if (this.preview.show) {
+                            this._closingModal = true;
+                            this.closePreview();
+                            this._closingModal = false;
+                            // 阻止后退离开页面：push 回一个状态
+                            history.pushState({ modal: null }, '');
+                        } else if (this.editor.show) {
+                            if (this.editor.isModified) {
+                                // 有未保存修改，阻止后退
+                                history.pushState({ modal: 'editor' }, '');
+                                this.showToast('请先保存或放弃修改', 'warning');
+                                return;
+                            }
+                            this._closingModal = true;
+                            this.closeEditor();
+                            this._closingModal = false;
+                            history.pushState({ modal: null }, '');
+                        }
+                    });
+
                     await this.checkAuth();
                     await this.initSidebar();
                     // 设置为第一个文件夹路径
@@ -2005,6 +2027,7 @@
                 },
                 
                 async editFile(file) {
+                    this.pushModalHistory();
                     this.editor.file = file;
                     this.editor.show = true;
                     this.editor.saving = false;
@@ -2123,7 +2146,8 @@
                 },
                 
                 closeEditor() {
-                    if (this.editor.isModified) {
+                    if (!this.editor.show) return;
+                    if (this.editor.isModified && !this._closingModal) {
                         if (!confirm('文件已修改，是否放弃保存？')) return;
                     }
 
@@ -2132,6 +2156,9 @@
                     this.editor.content = '';
                     this.editor.originalContent = '';
                     this.editor.isModified = false;
+                    if (!this._closingModal) {
+                        history.back();
+                    }
                 },
                 
                 // ===== 文件操作 =====
@@ -2384,7 +2411,11 @@
                 },
                 
                 // ===== 预览 =====
+                pushModalHistory() {
+                    history.pushState({ modal: 'open' }, '');
+                },
                 async previewFile(file) {
+                    this.pushModalHistory();
                     this.preview.file = file;
                     this.preview.show = true;
                     this.preview.loading = true;
@@ -2426,6 +2457,7 @@
                 },
                 
                 closePreview() {
+                    if (!this.preview.show) return;
                     this.preview.show = false;
                     this.preview.file = null;
                     this.preview.content = '';
@@ -2433,6 +2465,9 @@
                     this.preview.mediaType = null;
                     this.preview.imageZoom = 1;
                     this.preview.imageDragging = false;
+                    if (!this._closingModal) {
+                        history.back();
+                    }
                 },
 
                 // ===== 图片缩放 =====
