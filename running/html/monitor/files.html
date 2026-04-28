@@ -1269,14 +1269,8 @@
             
             <!-- 图片预览 -->
             <div x-show="preview.mediaType === 'image'" 
-                 x-ref="imgContainer"
-                 class="flex-1 overflow-auto bg-gray-800 relative"
-                 @wheel.prevent="previewImageZoomWheel"
-                 @mousedown="previewImageDragStart"
-                 @mousemove="previewImageDragMove"
-                 @mouseup="previewImageDragEnd"
-                 @mouseleave="previewImageDragEnd">
-                <!-- 缩放控件 -->
+                 class="flex-1 bg-gray-800 relative">
+                <!-- 缩放控件 - 固定定位，不随图片滚动 -->
                 <div class="absolute bottom-4 right-4 z-10 flex items-center gap-0.5 bg-black/60 backdrop-blur rounded-lg p-1.5 shadow-lg">
                     <button @click="previewImageZoomOut"
                             class="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-lg leading-none select-none"
@@ -1289,11 +1283,19 @@
                     <button @click="previewImageZoomReset"
                             class="px-2 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded text-xs select-none ml-1">1:1</button>
                 </div>
-                <div class="min-w-full min-h-full flex items-center justify-center p-8">
-                    <img :src="preview.url" 
-                         :style="'transform: scale(' + preview.imageZoom + '); cursor: ' + (preview.imageZoom > 1 ? 'grab' : 'default')"
-                         class="select-none transition-transform duration-150"
-                         @dragstart.prevent>
+                <div class="w-full h-full overflow-auto"
+                     x-ref="imgContainer"
+                     @wheel.prevent="previewImageZoomWheel"
+                     @mousedown="previewImageDragStart"
+                     @mousemove="previewImageDragMove"
+                     @mouseup="previewImageDragEnd"
+                     @mouseleave="previewImageDragEnd">
+                    <div class="min-w-full min-h-full flex items-center justify-center p-8">
+                        <img :src="preview.url" 
+                             :style="'transform: scale(' + preview.imageZoom + '); cursor: ' + (preview.imageZoom > 1 ? 'grab' : 'default')"
+                             class="select-none transition-transform duration-150"
+                             @dragstart.prevent>
+                    </div>
                 </div>
             </div>
 
