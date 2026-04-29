@@ -1255,17 +1255,21 @@
                 <div class="flex items-center gap-3">
                     <!-- 图片缩放按钮 -->
                     <template x-if="preview.mediaType === 'image'">
-                        <div class="flex items-center gap-0.5">
+                        <div class="flex items-center gap-0.5 border border-gray-200 rounded-lg px-1">
                             <button @click="previewImageZoomOut"
-                                    class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded text-lg leading-none select-none"
-                                    :class="preview.imageZoom <= 0.25 ? 'opacity-30 cursor-not-allowed' : ''">−</button>
-                            <span class="text-xs text-gray-500 tabular-nums min-w-[38px] text-center select-none"
+                                    class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded"
+                                    :class="preview.imageZoom <= 0.25 ? 'opacity-30 cursor-not-allowed' : ''">
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+                            </button>
+                            <span @click="preview.imageZoom = 1"
+                                  class="text-sm text-gray-600 tabular-nums min-w-[44px] text-center select-none font-medium cursor-pointer hover:text-blue-600"
+                                  title="点击重置为100%"
                                   x-text="Math.round(preview.imageZoom * 100) + '%'"></span>
                             <button @click="previewImageZoomIn"
-                                    class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded text-lg leading-none select-none"
-                                    :class="preview.imageZoom >= 10 ? 'opacity-30 cursor-not-allowed' : ''">+</button>
-                            <button @click="previewImageZoomReset"
-                                    class="px-1.5 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded text-xs select-none">1:1</button>
+                                    class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded"
+                                    :class="preview.imageZoom >= 10 ? 'opacity-30 cursor-not-allowed' : ''">
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14 M5 12h14"/></svg>
+                            </button>
                         </div>
                     </template>
                     <button @click="downloadFile(preview.file)" class="text-gray-600 hover:text-blue-600 p-1" title="下载">
@@ -2469,9 +2473,6 @@
                 },
                 previewImageZoomOut() {
                     this.preview.imageZoom = Math.max(0.25, this.preview.imageZoom - 0.25);
-                },
-                previewImageZoomReset() {
-                    this.preview.imageZoom = 1;
                 },
 
 
