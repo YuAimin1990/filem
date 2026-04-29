@@ -1310,6 +1310,11 @@
                 <div x-html="preview.renderedContent" class="markdown-body prose max-w-none"></div>
             </div>
 
+            <!-- HTML 预览 -->
+            <div x-show="preview.mediaType === 'html'" class="flex-1 overflow-hidden bg-white">
+                <iframe :srcdoc="preview.content" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin"></iframe>
+            </div>
+
             <!-- PDF 预览 -->
             <div x-show="preview.mediaType === 'pdf'" class="flex-1 overflow-hidden bg-gray-200">
                 <embed :src="preview.url" type="application/pdf" class="w-full h-full border-0">
@@ -2000,12 +2005,14 @@
                     const videoExts = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'webm'];
                     const markdownExts = ['md', 'markdown', 'mdown'];
                     const pdfExts = ['pdf'];
+                    const htmlExts = ['html', 'htm'];
 
                     if (imageExts.includes(ext)) return 'image';
                     if (audioExts.includes(ext)) return 'audio';
                     if (videoExts.includes(ext)) return 'video';
                     if (markdownExts.includes(ext)) return 'markdown';
                     if (pdfExts.includes(ext)) return 'pdf';
+                    if (htmlExts.includes(ext)) return 'html';
                     return null;
                 },
                 
@@ -2425,7 +2432,7 @@
                     this.preview.renderedContent = '';
                     this.preview.imageZoom = 1;
 
-                    if (this.preview.mediaType && this.preview.mediaType !== 'markdown') {
+                    if (this.preview.mediaType && this.preview.mediaType !== 'markdown' && this.preview.mediaType !== 'html') {
                         this.preview.loading = false;
                         return;
                     }
