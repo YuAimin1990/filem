@@ -16,12 +16,7 @@ local PERM_DATA_FILE = APP_ROOT .. "/monitor/data/permissions.jsonl"
 local GROUP_DATA_FILE = APP_ROOT .. "/monitor/data/groups.jsonl"
 local SESSION_DICT = ngx.shared.user_sessions
 
--- 权限位: owner(64) / group(8) / others(1) * r(4) / w(2) / x(1)
--- 例: owner r=256, w=128, x=64; group r=32, w=16, x=8; others r=4, w=2, x=1
-local BIT_OWNER_R = 256; local BIT_OWNER_W = 128; local BIT_OWNER_X = 64
-local BIT_GROUP_R = 32;  local BIT_GROUP_W = 16;  local BIT_GROUP_X = 8
-local BIT_OTHER_R = 4;   local BIT_OTHER_W = 2;   local BIT_OTHER_X = 1
-
+-- 权限位: 每位=owner/group/others × r/w/x
 local MAX_RECURSE = 5
 
 -- 生成随机 salt (hex encoded)
@@ -532,12 +527,15 @@ function _M.set_owner(path, owner_id, group_id, resource_type, session)
 end
 
 function _M.set_mode(path, mode, session)
-    local ok, err = _M.check_permission(session, path, "write")
-    if not ok and session.role ~= "admin" then
-        -- owner or admin can chmod
+    -- 只有 owner 或 admin 可以 chmod
+    if session.role ~= "admin" then
         local perm = get_resource_permission(path)
-        if not perm or perm.owner_id ~= session.user_id then
-            return false, err or "需要所有者或管理员权限"
+        if not perm then
+            -- 文件无权限记录，不允许非 admin 创建记录（防 owner 劫持）
+            return false, "需要管理员权限为文件设置权限"
+        end
+        if perm.owner_id ~= session.user_id then
+            return false, "需要文件所有者或管理员权限"
         end
     end
 

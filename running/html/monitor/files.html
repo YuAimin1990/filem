@@ -1313,7 +1313,10 @@
 
                 <!-- 权限 3×3 网格 -->
                 <div>
-                    <div class="text-xs font-medium text-gray-500 mb-2">权限</div>
+                    <div class="text-xs font-medium text-gray-500 mb-2">
+                        权限
+                        <span x-show="!isAdmin && currentUser !== permDialog.owner_name" class="text-gray-400 ml-1">（仅可查看）</span>
+                    </div>
                     <table class="w-full text-center text-sm">
                         <thead>
                             <tr class="text-xs text-gray-400">
@@ -1326,21 +1329,21 @@
                         <tbody>
                             <tr>
                                 <td class="text-right pr-3 text-xs text-gray-500 py-1">所有者</td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[0]" @change="permChk[0]=!permChk[0];permCheckChanged()" class="w-4 h-4 rounded"></td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[1]" @change="permChk[1]=!permChk[1];permCheckChanged()" class="w-4 h-4 rounded"></td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[2]" @change="permChk[2]=!permChk[2];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[0]" @change="permChk[0]=!permChk[0];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[1]" @change="permChk[1]=!permChk[1];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[2]" @change="permChk[2]=!permChk[2];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
                             </tr>
                             <tr>
                                 <td class="text-right pr-3 text-xs text-gray-500 py-1">用户组</td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[3]" @change="permChk[3]=!permChk[3];permCheckChanged()" class="w-4 h-4 rounded"></td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[4]" @change="permChk[4]=!permChk[4];permCheckChanged()" class="w-4 h-4 rounded"></td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[5]" @change="permChk[5]=!permChk[5];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[3]" @change="permChk[3]=!permChk[3];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[4]" @change="permChk[4]=!permChk[4];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[5]" @change="permChk[5]=!permChk[5];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
                             </tr>
                             <tr>
                                 <td class="text-right pr-3 text-xs text-gray-500 py-1">其他用户</td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[6]" @change="permChk[6]=!permChk[6];permCheckChanged()" class="w-4 h-4 rounded"></td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[7]" @change="permChk[7]=!permChk[7];permCheckChanged()" class="w-4 h-4 rounded"></td>
-                                <td class="px-1"><input type="checkbox" :checked="permChk[8]" @change="permChk[8]=!permChk[8];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[6]" @change="permChk[6]=!permChk[6];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[7]" @change="permChk[7]=!permChk[7];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[8]" @change="permChk[8]=!permChk[8];permCheckChanged()" class="w-4 h-4 rounded" :disabled="!isAdmin && currentUser !== permDialog.owner_name"></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1353,18 +1356,19 @@
                 </div>
 
                 <!-- 快捷预设 -->
-                <div class="flex gap-1 flex-wrap">
+                <div class="flex gap-1 flex-wrap" x-show="isAdmin || currentUser === permDialog.owner_name">
                     <span class="text-xs text-gray-400 mr-1 self-center">快捷：</span>
-                    <button @click="permDialog.mode=448;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">700</button>
-                    <button @click="permDialog.mode=420;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">644</button>
-                    <button @click="permDialog.mode=384;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">600</button>
-                    <button @click="permDialog.mode=493;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">755</button>
-                    <button @click="permDialog.mode=511;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">777</button>
+                    <button @click="permDialog.mode=448;syncModeStr();syncChkFromMode()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">700</button>
+                    <button @click="permDialog.mode=420;syncModeStr();syncChkFromMode()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">644</button>
+                    <button @click="permDialog.mode=384;syncModeStr();syncChkFromMode()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">600</button>
+                    <button @click="permDialog.mode=493;syncModeStr();syncChkFromMode()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">755</button>
+                    <button @click="permDialog.mode=511;syncModeStr();syncChkFromMode()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">777</button>
                 </div>
             </div>
             <div class="p-3 border-t border-gray-200 flex justify-between">
                 <button @click="showPermDialog = false" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">关闭</button>
-                <button @click="savePermissions()" :disabled="permDialog.loading || permDialog.saving"
+                <button @click="savePermissions()" x-show="isAdmin || currentUser === permDialog.owner_name"
+                        :disabled="permDialog.loading || permDialog.saving"
                         class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-40">
                     <span x-show="!permDialog.saving">保存权限</span>
                     <span x-show="permDialog.saving">保存中...</span>
@@ -1624,6 +1628,7 @@
 
                 // 权限管理 (Linux rwx)
                 permDialog: { path: '', owner_id: '', group_id: '', mode: 420, mode_str: '', mode_octal: '0644', owner_name: '', group_name: '', loading: false, saving: false },
+                permChk: [true,true,false,true,false,false,true,false,false],  // 0-2:owner rwx, 3-5:group rwx, 6-8:other rwx
                 permDialogFile: null,
                 allUsers: [],
                 allGroups: [],
@@ -2623,8 +2628,18 @@
 
 
                 // ===== 权限管理 (Linux rwx) =====
+                syncChkFromMode() {
+                    const m = this.permDialog.mode;
+                    const ow = Math.floor(m / 64);
+                    const gr = Math.floor(m / 8) % 8;
+                    const ot = m % 8;
+                    this.permChk = [
+                        ow >= 4, ow % 4 >= 2, ow % 2 >= 1,
+                        gr >= 4, gr % 4 >= 2, gr % 2 >= 1,
+                        ot >= 4, ot % 4 >= 2, ot % 2 >= 1
+                    ];
+                },
                 permCheckChanged() {
-                    // 从9个checkbox重算mode
                     let m = 0;
                     if (this.permChk[0]) m += 256; if (this.permChk[1]) m += 128; if (this.permChk[2]) m += 64;
                     if (this.permChk[3]) m += 32;  if (this.permChk[4]) m += 16;  if (this.permChk[5]) m += 8;
@@ -2691,6 +2706,7 @@
                             this.permDialog.owner_name = p.owner_name || '';
                             this.permDialog.group_name = p.group_name || '';
                             this.syncModeStr();
+                            this.syncChkFromMode();
                         }
                     } catch (e) {
                         this.showToast('获取权限信息失败', 'error');
@@ -2734,18 +2750,7 @@
                         this.permDialog.saving = false;
                     }
                 },
-                get permChk() {
-                    const m = this.permDialog.mode || 0;
-                    const ow = Math.floor(m / 64);
-                    const gr = Math.floor(m / 8) % 8;
-                    const ot = m % 8;
-                    return [
-                        ow >= 4, ow % 4 >= 2, ow % 2 >= 1,
-                        gr >= 4, gr % 4 >= 2, gr % 2 >= 1,
-                        ot >= 4, ot % 4 >= 2, ot % 2 >= 1
-                    ];
-                },
-                set permChk(val) {},  // computed getter, no setter needed
+
 
                 // ===== 拖拽操作 =====
                 handleDragStart(event, file) {
