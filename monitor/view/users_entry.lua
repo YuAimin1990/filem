@@ -27,14 +27,10 @@ local function json_response(data, status)
     return ngx.exit(ngx.OK)
 end
 
--- 检查 admin 权限
+-- 检查登录（GET 开放所有用户，写操作需 admin）
 local session = auth.get_session()
 if not session then
     return json_response({ code = -401, message = "请先登录" }, 401)
-end
-
-if session.role ~= "admin" then
-    return json_response({ code = -403, message = "需要管理员权限" }, 403)
 end
 
 if method == "GET" then
@@ -52,6 +48,10 @@ if method == "GET" then
     return json_response({ code = 0, data = { users = user_list } })
 
 elseif method == "POST" then
+    -- admin only for mutations
+    if session.role ~= "admin" then
+        return json_response({ code = -403, message = "需要管理员权限" }, 403)
+    end
     ngx.req.read_body()
     local body = ngx.req.get_body_data()
     local post_data = {}
@@ -83,6 +83,9 @@ elseif method == "POST" then
     return json_response({ code = 0, data = user })
 
 elseif method == "PUT" then
+    if session.role ~= "admin" then
+        return json_response({ code = -403, message = "需要管理员权限" }, 403)
+    end
     local user_id = ngx.var.arg_id
     if not user_id then
         return json_response({ code = -400, message = "缺少用户 ID" }, 400)
