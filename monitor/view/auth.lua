@@ -98,13 +98,30 @@ local function load_users()
     local file = io.open(USER_DATA_FILE, "r")
     if not file then return {} end
     local users = {}
+    local needs_migration = false
     for line in file:lines() do
         if line and line ~= "" then
             local ok, u = pcall(cjson.decode, line)
-            if ok and u then users[u.id] = u end
+            if ok and u then
+                if u.primary_group == nil then
+                    u.primary_group = (u.role == "admin") and "g_admin" or "g_users"
+                    needs_migration = true
+                end
+                users[u.id] = u
+            end
         end
     end
     file:close()
+    if needs_migration then
+        local out = io.open(USER_DATA_FILE, "w")
+        if out then
+            for _, u in pairs(users) do
+                out:write(cjson.encode(u) .. "\n")
+            end
+            out:close()
+        end
+        ngx.log(ngx.WARN, "[auth] Migrated users with default primary_group")
+    end
     return users
 end
 
@@ -377,15 +394,26 @@ local function load_permissions()
     local file = io.open(PERM_DATA_FILE, "r")
     if not file then return {} end
     local perms = {}
+    local needs_migration = false
     for line in file:lines() do
         if line and line ~= "" then
             local ok, p = pcall(cjson.decode, line)
             if ok and p then
+                -- 迁移旧格式 (grants → mode)
+                if p.mode == nil then
+                    p.mode = 511  -- 0777: 原有 ACL 权限通过 rwx 落地为全开放
+                    p.group_id = p.group_id or "g_users"
+                    needs_migration = true
+                end
                 perms[p.resource_path] = p
             end
         end
     end
     file:close()
+    if needs_migration then
+        save_all_permissions(perms)
+        ngx.log(ngx.WARN, "[auth] Migrated old permissions to rwx mode")
+    end
     return perms
 end
 
