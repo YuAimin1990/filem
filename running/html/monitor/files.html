@@ -1254,18 +1254,18 @@
         </div>
     </div>
 
-    <!-- ===== 权限管理对话框 (Linux rwx) ===== -->
+    <!-- ===== 权限管理对话框 ===== -->
     <div x-show="showPermDialog" class="dialog-overlay" @click.self="showPermDialog = false" @keydown.escape="showPermDialog = false">
-        <div class="bg-white rounded-xl max-w-sm mx-auto my-8 flex flex-col shadow-xl" style="max-height: 90vh;">
+        <div class="bg-white rounded-xl max-w-lg mx-auto my-8 flex flex-col shadow-xl" style="max-height: 90vh;">
             <div class="flex items-center justify-between p-4 border-b border-gray-200">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
                     <svg class="icon text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                     </svg>
-                    chmod
+                    权限设置
                 </h3>
                 <div class="flex items-center gap-3">
-                    <span class="text-sm text-gray-500 max-w-[160px] truncate" x-text="permDialogFile?.name"></span>
+                    <span class="text-sm text-gray-500 max-w-[200px] truncate" x-text="permDialogFile?.name"></span>
                     <button @click="showPermDialog = false" class="text-gray-400 hover:text-gray-600 p-1">
                         <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M6 18L18 6M6 6l12 12"/>
@@ -1284,7 +1284,7 @@
                 <!-- 所有者/组选择 -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Owner</label>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">所有者</label>
                         <select x-model="permDialog.owner_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
                             <option value="">—</option>
                             <template x-for="u in allUsers" :key="u.id">
@@ -1293,7 +1293,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Group</label>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">用户组</label>
                         <select x-model="permDialog.group_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
                             <option value="">—</option>
                             <template x-for="g in allGroups" :key="g.id">
@@ -1303,33 +1303,33 @@
                     </div>
                 </div>
 
-                <!-- rwx 3×3 网格 -->
+                <!-- 权限 3×3 网格 -->
                 <div>
-                    <div class="text-xs font-medium text-gray-500 mb-2">Permissions</div>
+                    <div class="text-xs font-medium text-gray-500 mb-2">权限</div>
                     <table class="w-full text-center text-sm">
                         <thead>
                             <tr class="text-xs text-gray-400">
                                 <th class="pb-1"></th>
-                                <th class="pb-1">r</th>
-                                <th class="pb-1">w</th>
-                                <th class="pb-1">x</th>
+                                <th class="pb-1">读</th>
+                                <th class="pb-1">写</th>
+                                <th class="pb-1">执行</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="text-right pr-3 text-xs text-gray-500 py-1">Owner</td>
+                                <td class="text-right pr-3 text-xs text-gray-500 py-1">所有者</td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[0]" @change="permChk[0]=!permChk[0];permCheckChanged()" class="w-4 h-4 rounded"></td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[1]" @change="permChk[1]=!permChk[1];permCheckChanged()" class="w-4 h-4 rounded"></td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[2]" @change="permChk[2]=!permChk[2];permCheckChanged()" class="w-4 h-4 rounded"></td>
                             </tr>
                             <tr>
-                                <td class="text-right pr-3 text-xs text-gray-500 py-1">Group</td>
+                                <td class="text-right pr-3 text-xs text-gray-500 py-1">用户组</td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[3]" @change="permChk[3]=!permChk[3];permCheckChanged()" class="w-4 h-4 rounded"></td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[4]" @change="permChk[4]=!permChk[4];permCheckChanged()" class="w-4 h-4 rounded"></td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[5]" @change="permChk[5]=!permChk[5];permCheckChanged()" class="w-4 h-4 rounded"></td>
                             </tr>
                             <tr>
-                                <td class="text-right pr-3 text-xs text-gray-500 py-1">Others</td>
+                                <td class="text-right pr-3 text-xs text-gray-500 py-1">其他用户</td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[6]" @change="permChk[6]=!permChk[6];permCheckChanged()" class="w-4 h-4 rounded"></td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[7]" @change="permChk[7]=!permChk[7];permCheckChanged()" class="w-4 h-4 rounded"></td>
                                 <td class="px-1"><input type="checkbox" :checked="permChk[8]" @change="permChk[8]=!permChk[8];permCheckChanged()" class="w-4 h-4 rounded"></td>
@@ -1346,6 +1346,7 @@
 
                 <!-- 快捷预设 -->
                 <div class="flex gap-1 flex-wrap">
+                    <span class="text-xs text-gray-400 mr-1 self-center">快捷：</span>
                     <button @click="permDialog.mode=448;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">700</button>
                     <button @click="permDialog.mode=420;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">644</button>
                     <button @click="permDialog.mode=384;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">600</button>
@@ -1357,7 +1358,7 @@
                 <button @click="showPermDialog = false" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">关闭</button>
                 <button @click="savePermissions()" :disabled="permDialog.loading || permDialog.saving"
                         class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-40">
-                    <span x-show="!permDialog.saving">保存 chmod</span>
+                    <span x-show="!permDialog.saving">保存权限</span>
                     <span x-show="permDialog.saving">保存中...</span>
                 </button>
             </div>
