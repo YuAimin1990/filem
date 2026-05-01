@@ -1248,18 +1248,18 @@
         </div>
     </div>
 
-    <!-- ===== 权限管理对话框 ===== -->
+    <!-- ===== 权限管理对话框 (Linux rwx) ===== -->
     <div x-show="showPermDialog" class="dialog-overlay" @click.self="showPermDialog = false" @keydown.escape="showPermDialog = false">
-        <div class="bg-white rounded-xl max-w-md mx-auto my-8 flex flex-col shadow-xl" style="max-height: 85vh; min-width:380px;">
+        <div class="bg-white rounded-xl max-w-sm mx-auto my-8 flex flex-col shadow-xl" style="max-height: 90vh;">
             <div class="flex items-center justify-between p-4 border-b border-gray-200">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
                     <svg class="icon text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                     </svg>
-                    权限管理
+                    chmod
                 </h3>
                 <div class="flex items-center gap-3">
-                    <span class="text-sm text-gray-500 max-w-[200px] truncate" x-text="permDialogFile?.name"></span>
+                    <span class="text-sm text-gray-500 max-w-[160px] truncate" x-text="permDialogFile?.name"></span>
                     <button @click="showPermDialog = false" class="text-gray-400 hover:text-gray-600 p-1">
                         <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M6 18L18 6M6 6l12 12"/>
@@ -1267,97 +1267,93 @@
                     </button>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-4">
-                <!-- 加载中 -->
-                <div x-show="permDialog.loading" class="text-center py-8 text-gray-400">
-                    <svg class="icon animate-spin mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-                    </svg>
-                    加载中...
+            <div x-show="permDialog.loading" class="text-center py-12 text-gray-400">
+                <svg class="icon animate-spin mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                </svg>
+                加载中...
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" x-show="!permDialog.loading">
+
+                <!-- 所有者/组选择 -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Owner</label>
+                        <select x-model="permDialog.owner_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                            <option value="">—</option>
+                            <template x-for="u in allUsers" :key="u.id">
+                                <option :value="u.id" x-text="u.username"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Group</label>
+                        <select x-model="permDialog.group_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                            <option value="">—</option>
+                            <template x-for="g in allGroups" :key="g.id">
+                                <option :value="g.id" x-text="g.name"></option>
+                            </template>
+                        </select>
+                    </div>
                 </div>
 
-                <template x-if="!permDialog.loading">
-                    <div>
-                        <!-- 所有者 -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">所有者</label>
-                            <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                                <span class="text-sm" x-text="permDialog.owner_name || '未设置'"></span>
-                                <span x-show="!permDialog.owner_id" class="text-xs text-gray-400">（无限制访问）</span>
-                            </div>
-                        </div>
+                <!-- rwx 3×3 网格 -->
+                <div>
+                    <div class="text-xs font-medium text-gray-500 mb-2">Permissions</div>
+                    <table class="w-full text-center text-sm">
+                        <thead>
+                            <tr class="text-xs text-gray-400">
+                                <th class="pb-1"></th>
+                                <th class="pb-1">r</th>
+                                <th class="pb-1">w</th>
+                                <th class="pb-1">x</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-right pr-3 text-xs text-gray-500 py-1">Owner</td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[0]" @change="permChk[0]=!permChk[0];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[1]" @change="permChk[1]=!permChk[1];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[2]" @change="permChk[2]=!permChk[2];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-3 text-xs text-gray-500 py-1">Group</td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[3]" @change="permChk[3]=!permChk[3];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[4]" @change="permChk[4]=!permChk[4];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[5]" @change="permChk[5]=!permChk[5];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-3 text-xs text-gray-500 py-1">Others</td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[6]" @change="permChk[6]=!permChk[6];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[7]" @change="permChk[7]=!permChk[7];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                                <td class="px-1"><input type="checkbox" :checked="permChk[8]" @change="permChk[8]=!permChk[8];permCheckChanged()" class="w-4 h-4 rounded"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                        <!-- 授权列表 -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-600 mb-2">授权列表</label>
-                            <div x-show="permDialog.grants.length === 0" class="text-sm text-gray-400 py-2">
-                                <template x-if="permDialog.owner_id">
-                                    <span>暂无授权，仅所有者可操作</span>
-                                </template>
-                                <template x-if="!permDialog.owner_id">
-                                    <span>暂无权限记录，文件可自由访问</span>
-                                </template>
-                            </div>
-                            <template x-for="grant in permDialog.grants" :key="grant.user_id">
-                                <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm font-medium" x-text="resolveUserName(grant.user_id)"></span>
-                                        <span class="text-xs px-1.5 py-0.5 rounded-full" 
-                                              :class="grant.permission === 'admin' ? 'bg-red-100 text-red-700' : grant.permission === 'write' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'"
-                                              x-text="grant.permission"></span>
-                                    </div>
-                                    <button @click="removeGrant(grant.user_id)" 
-                                            class="text-red-400 hover:text-red-600 p-1" title="移除授权">
-                                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </template>
-                        </div>
+                <!-- 权限字符串显示 -->
+                <div class="bg-gray-100 rounded-lg px-3 py-2 flex items-center justify-center gap-4">
+                    <span class="font-mono text-lg font-bold text-gray-800" x-text="permDialog.mode_str"></span>
+                    <span class="text-sm text-gray-500 font-mono" x-text="permDialog.mode_octal"></span>
+                </div>
 
-                        <!-- 添加授权 -->
-                        <div class="border-t pt-4">
-                            <label class="block text-sm font-medium text-gray-600 mb-2">添加授权</label>
-                            <div class="flex items-center gap-2 mb-3">
-                                <select x-model="permGrantUser" 
-                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="" disabled>选择用户...</option>
-                                    <template x-for="u in allUsers" :key="u.id">
-                                        <option :value="u.id" x-text="u.username + (u.id === permDialog.owner_id ? ' (所有者)' : '')"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="flex items-center gap-2 mb-3">
-                                <label class="flex items-center gap-1 text-sm">
-                                    <input type="radio" x-model="permGrantLevel" value="read" class="text-blue-500">
-                                    <span class="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs">read</span>
-                                </label>
-                                <label class="flex items-center gap-1 text-sm">
-                                    <input type="radio" x-model="permGrantLevel" value="write" class="text-blue-500">
-                                    <span class="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs">write</span>
-                                </label>
-                                <label class="flex items-center gap-1 text-sm">
-                                    <input type="radio" x-model="permGrantLevel" value="delete" class="text-blue-500">
-                                    <span class="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs">delete</span>
-                                </label>
-                                <label class="flex items-center gap-1 text-sm">
-                                    <input type="radio" x-model="permGrantLevel" value="admin" class="text-blue-500">
-                                    <span class="px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">admin</span>
-                                </label>
-                            </div>
-                            <button @click="addGrant()" 
-                                    :disabled="!permGrantUser || permDialog.saving"
-                                    class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm">
-                                <span x-show="!permDialog.saving">添加授权</span>
-                                <span x-show="permDialog.saving">保存中...</span>
-                            </button>
-                        </div>
-                    </div>
-                </template>
+                <!-- 快捷预设 -->
+                <div class="flex gap-1 flex-wrap">
+                    <button @click="permDialog.mode=448;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">700</button>
+                    <button @click="permDialog.mode=420;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">644</button>
+                    <button @click="permDialog.mode=384;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">600</button>
+                    <button @click="permDialog.mode=493;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">755</button>
+                    <button @click="permDialog.mode=511;syncModeStr()" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">777</button>
+                </div>
             </div>
-            <div class="p-3 border-t border-gray-200 flex justify-end">
-                <button @click="showPermDialog = false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">关闭</button>
+            <div class="p-3 border-t border-gray-200 flex justify-between">
+                <button @click="showPermDialog = false" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">关闭</button>
+                <button @click="savePermissions()" :disabled="permDialog.loading || permDialog.saving"
+                        class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-40">
+                    <span x-show="!permDialog.saving">保存 chmod</span>
+                    <span x-show="permDialog.saving">保存中...</span>
+                </button>
             </div>
         </div>
     </div>
@@ -1611,12 +1607,11 @@
                 renameTarget: { oldName: '', newName: '' },
                 deleteTarget: { file: null, files: [], isBatch: false },
 
-                // 权限管理
-                permDialog: { path: '', owner_id: '', owner_name: '', grants: [], loading: false, saving: false },
+                // 权限管理 (Linux rwx)
+                permDialog: { path: '', owner_id: '', group_id: '', mode: 420, mode_str: '', mode_octal: '0644', owner_name: '', group_name: '', loading: false, saving: false },
                 permDialogFile: null,
-                permGrantUser: '',
-                permGrantLevel: 'read',
                 allUsers: [],
+                allGroups: [],
                 
                 // 上下文菜单
                 contextMenu: { show: false, x: 0, y: 0, file: null },
@@ -2612,41 +2607,72 @@
                 },
 
 
-                // ===== 权限管理 =====
+                // ===== 权限管理 (Linux rwx) =====
+                permCheckChanged() {
+                    // 从9个checkbox重算mode
+                    let m = 0;
+                    if (this.permChk[0]) m += 256; if (this.permChk[1]) m += 128; if (this.permChk[2]) m += 64;
+                    if (this.permChk[3]) m += 32;  if (this.permChk[4]) m += 16;  if (this.permChk[5]) m += 8;
+                    if (this.permChk[6]) m += 4;   if (this.permChk[7]) m += 2;   if (this.permChk[8]) m += 1;
+                    this.permDialog.mode = m;
+                    this.syncModeStr();
+                },
+                syncModeStr() {
+                    const m = this.permDialog.mode;
+                    const r = (b) => (m / b) % 8 >= 4 ? 'r' : '-';
+                    const w = (b) => (m / b) % 4 >= 2 ? 'w' : '-';
+                    const x = (b) => m % b >= b/2 ? 'x' : '-';
+                    this.permDialog.mode_str = r(256)+w(128)+x(64) + r(32)+w(16)+x(8) + r(4)+w(2)+x(1);
+                    this.permDialog.mode_octal = '0' + Math.floor(m/64) + Math.floor(m/8)%8 + m%8;
+                },
                 async openPermissions(file) {
                     this.permDialogFile = file;
-                    this.permDialog = { path: '', owner_id: '', owner_name: '', grants: [], loading: true, saving: false };
-                    this.permGrantUser = '';
-                    this.permGrantLevel = 'read';
                     this.showPermDialog = true;
+                    this.permDialog.loading = true;
 
-                    await this.fetchUsers();
+                    if (this.allUsers.length === 0) await this.fetchUsers();
+                    if (this.allGroups.length === 0) await this.fetchGroups();
 
                     const fullPath = this.getFullPath(file.name);
                     await this.fetchPermissions(fullPath);
                 },
                 async fetchUsers() {
                     try {
-                        const resp = await this.apiRequest('/api/users');
-                        const data = await resp.json();
-                        if (data.code === 0 && data.data && data.data.users) {
-                            this.allUsers = data.data.users.map(u => ({ id: u.id, username: u.username }));
+                        const r = await this.apiRequest('/api/users');
+                        const d = await r.json();
+                        if (d.code === 0 && d.data && d.data.users) {
+                            this.allUsers = d.data.users.map(u => ({ id: u.id, username: u.username }));
                         }
                     } catch (e) {
-                        console.error('fetchUsers failed:', e);
-                        this.showToast('获取用户列表失败，请关闭对话框后重试', 'error');
+                        this.showToast('获取用户列表失败', 'error');
+                    }
+                },
+                async fetchGroups() {
+                    try {
+                        const r = await this.apiRequest('/api/groups');
+                        const d = await r.json();
+                        if (d.code === 0 && d.data && d.data.groups) {
+                            this.allGroups = d.data.groups;
+                        }
+                    } catch (e) {
+                        console.error('fetchGroups failed:', e);
                     }
                 },
                 async fetchPermissions(path) {
                     try {
-                        const resp = await this.apiRequest(`/api/permissions?path=${encodeURIComponent(path)}`);
-                        const data = await resp.json();
-                        if (data.code === 0) {
-                            const d = data.data;
-                            this.permDialog.path = d.resource_path || path;
-                            this.permDialog.owner_id = d.owner_id || '';
-                            this.permDialog.owner_name = this.resolveUserName(d.owner_id);
-                            this.permDialog.grants = d.grants || [];
+                        const r = await this.apiRequest(`/api/permissions?path=${encodeURIComponent(path)}`);
+                        const d = await r.json();
+                        if (d.code === 0) {
+                            const p = d.data;
+                            this.permDialog.path = p.resource_path || path;
+                            this.permDialog.owner_id = p.owner_id || '';
+                            this.permDialog.group_id = p.group_id || '';
+                            this.permDialog.mode = p.mode || 0;
+                            this.permDialog.mode_str = p.mode_str || '---------';
+                            this.permDialog.mode_octal = p.mode_octal || '0000';
+                            this.permDialog.owner_name = p.owner_name || '';
+                            this.permDialog.group_name = p.group_name || '';
+                            this.syncModeStr();
                         }
                     } catch (e) {
                         this.showToast('获取权限信息失败', 'error');
@@ -2655,29 +2681,32 @@
                     }
                 },
                 resolveUserName(userId) {
-                    if (!userId) return '未知';
+                    if (!userId || userId === '') return '—';
                     const u = this.allUsers.find(x => x.id === userId);
                     return u ? u.username : userId;
                 },
-                async addGrant() {
-                    if (!this.permGrantUser) return;
+                resolveGroupName(groupId) {
+                    if (!groupId || groupId === '') return '—';
+                    const g = this.allGroups.find(x => x.id === groupId);
+                    return g ? g.name : groupId;
+                },
+                async savePermissions() {
                     this.permDialog.saving = true;
                     try {
-                        const resp = await this.apiRequest('/api/permissions', {
+                        const body = { resource_path: this.permDialog.path, mode: this.permDialog.mode };
+                        if (this.permDialog.owner_id !== undefined) body.owner_id = this.permDialog.owner_id;
+                        if (this.permDialog.group_id !== undefined) body.group_id = this.permDialog.group_id;
+                        const r = await this.apiRequest('/api/permissions', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                resource_path: this.permDialog.path,
-                                grant: { user_id: this.permGrantUser, permission: this.permGrantLevel }
-                            })
+                            body: JSON.stringify(body)
                         });
-                        const data = await resp.json();
-                        if (data.code === 0) {
-                            this.showToast('授权已添加', 'success');
-                            this.permGrantUser = '';
-                            await this.fetchPermissions(this.permDialog.path);
+                        const d = await r.json();
+                        if (d.code === 0) {
+                            this.showToast('权限已保存', 'success');
+                            this.showPermDialog = false;
                         } else {
-                            this.showToast(data.message || '添加授权失败', 'error');
+                            this.showToast(d.message || '保存失败', 'error');
                         }
                     } catch (e) {
                         this.showToast('操作失败', 'error');
@@ -2685,31 +2714,15 @@
                         this.permDialog.saving = false;
                     }
                 },
-                async removeGrant(userId) {
-                    this.permDialog.saving = true;
-                    const updated = this.permDialog.grants.filter(g => g.user_id !== userId);
-                    try {
-                        const resp = await this.apiRequest('/api/permissions', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                resource_path: this.permDialog.path,
-                                grants: updated
-                            })
-                        });
-                        const data = await resp.json();
-                        if (data.code === 0) {
-                            this.showToast('授权已移除', 'success');
-                            await this.fetchPermissions(this.permDialog.path);
-                        } else {
-                            this.showToast(data.message || '移除授权失败', 'error');
-                        }
-                    } catch (e) {
-                        this.showToast('操作失败', 'error');
-                    } finally {
-                        this.permDialog.saving = false;
-                    }
+                get permChk() {
+                    const m = this.permDialog.mode || 0;
+                    return [
+                        (m / 256) % 8 >= 4, (m / 128) % 2 >= 1, (m / 64) % 2 >= 1,
+                        (m / 32) % 8 >= 4,  (m / 16) % 2 >= 1,  (m / 8) % 2 >= 1,
+                        (m / 4) % 8 >= 4,   (m / 2) % 2 >= 1,   m % 2 >= 1
+                    ];
                 },
+                set permChk(val) {},  // computed getter, no setter needed
 
                 // ===== 拖拽操作 =====
                 handleDragStart(event, file) {
