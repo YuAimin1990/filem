@@ -921,6 +921,8 @@
                                 大小
                                 <span class="sort-icon" :class="{ active: sortBy === 'size' }" x-text="sortBy === 'size' ? (sortDesc ? '▼' : '▲') : '⇅'"></span>
                             </th>
+                            <th class="px-4 py-3 w-28 text-sm text-gray-500 font-medium">权限</th>
+                            <th class="px-4 py-3 w-24 text-sm text-gray-500 font-medium">所有者</th>
                             <th class="px-4 py-3 w-48 sortable" @click="setSort('mtime')">
                                 修改时间
                                 <span class="sort-icon" :class="{ active: sortBy === 'mtime' }" x-text="sortBy === 'mtime' ? (sortDesc ? '▼' : '▲') : '⇅'"></span>
@@ -948,6 +950,8 @@
                                     <span class="file-name truncate" x-text="file.name"></span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600 text-sm" x-text="file.size_formatted"></td>
+                                <td class="px-4 py-3 text-xs font-mono text-gray-500" x-text="file.mode_str || '---------'"></td>
+                                <td class="px-4 py-3 text-xs text-gray-500" x-text="file.owner_name || '—'"></td>
                                 <td class="px-4 py-3 text-gray-600 text-sm" x-text="formatDate(file.mtime)"></td>
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -998,6 +1002,8 @@
                            :class="file.type === 'directory' ? 'text-blue-700' : 'text-gray-700'"
                            x-text="file.name"></p>
                         <p class="text-xs text-gray-500 mt-1" x-text="file.size_formatted"></p>
+                        <p class="text-xs font-mono text-gray-400 mt-0.5" x-text="file.mode_str || '---------'"
+                           x-show="file.mode_str !== 'rwxrwxrwx'"></p>
                     </div>
                 </template>
             </div>
