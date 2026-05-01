@@ -266,6 +266,18 @@ local function save_groups(groups)
     return true
 end
 
+-- 首次启动初始化默认组
+local function init_default_groups()
+    local groups = load_groups()
+    if next(groups) == nil then
+        groups["g_admin"] = { id = "g_admin", name = "admin", members = { "admin" }, created_at = os.time() }
+        groups["g_users"] = { id = "g_users", name = "users", members = {}, created_at = os.time() }
+        save_groups(groups)
+        ngx.log(ngx.WARN, "[auth] Default groups created: admin, users")
+    end
+end
+init_default_groups()
+
 function _M.get_all_groups()
     local groups = load_groups()
     local list = {}
