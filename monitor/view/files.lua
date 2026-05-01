@@ -126,7 +126,7 @@ local function set_perm_on_create(path, is_directory)
         end
     end
     local mode = is_directory and 493 or 420  -- 0755 / 0644
-    auth.set_owner(path, session.user_id, group_id, is_directory and "directory" or "file")
+    auth.set_owner(path, session.user_id, group_id, is_directory and "directory" or "file", session)
 end
 
 -- 权限检查辅助（内部使用 auth 模块）

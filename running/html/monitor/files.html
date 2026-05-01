@@ -1285,21 +1285,29 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">所有者</label>
-                        <select x-model="permDialog.owner_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                        <select x-model="permDialog.owner_id" 
+                                :disabled="!isAdmin"
+                                class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                                :class="{ 'bg-gray-100 cursor-not-allowed': !isAdmin }">
                             <option value="">—</option>
                             <template x-for="u in allUsers" :key="u.id">
                                 <option :value="u.id" x-text="u.username"></option>
                             </template>
                         </select>
+                        <p x-show="!isAdmin" class="text-xs text-gray-400 mt-0.5">仅管理员可修改</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">用户组</label>
-                        <select x-model="permDialog.group_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                        <select x-model="permDialog.group_id" 
+                                :disabled="!isAdmin"
+                                class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                                :class="{ 'bg-gray-100 cursor-not-allowed': !isAdmin }">
                             <option value="">—</option>
                             <template x-for="g in allGroups" :key="g.id">
                                 <option :value="g.id" x-text="g.name"></option>
                             </template>
                         </select>
+                        <p x-show="!isAdmin" class="text-xs text-gray-400 mt-0.5">仅管理员可修改</p>
                     </div>
                 </div>
 
@@ -2704,8 +2712,10 @@
                     this.permDialog.saving = true;
                     try {
                         const body = { resource_path: this.permDialog.path, mode: this.permDialog.mode };
-                        if (this.permDialog.owner_id !== undefined) body.owner_id = this.permDialog.owner_id;
-                        if (this.permDialog.group_id !== undefined) body.group_id = this.permDialog.group_id;
+                        if (this.isAdmin) {
+                            if (this.permDialog.owner_id !== undefined) body.owner_id = this.permDialog.owner_id;
+                            if (this.permDialog.group_id !== undefined) body.group_id = this.permDialog.group_id;
+                        }
                         const r = await this.apiRequest('/api/permissions', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },

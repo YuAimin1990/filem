@@ -502,8 +502,14 @@ function _M.check_permission(session, path, required_action)
     return _check_perm(session, path, required_action, 0)
 end
 
-function _M.set_owner(path, owner_id, group_id, resource_type)
+function _M.set_owner(path, owner_id, group_id, resource_type, session)
     local perm = get_resource_permission(path)
+    -- 已有权限记录且不是管理员：禁止修改所有者
+    if perm and perm.owner_id ~= owner_id then
+        if not session or session.role ~= "admin" then
+            return false, "需要管理员权限才能修改所有者和用户组"
+        end
+    end
     if not perm then
         perm = {
             resource_path = path,

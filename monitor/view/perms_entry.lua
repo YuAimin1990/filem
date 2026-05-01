@@ -128,7 +128,10 @@ elseif method == "PUT" then
     end
 
     if post_data.owner_id then
-        local ok, err = auth.set_owner(path, post_data.owner_id, post_data.group_id, post_data.resource_type)
+        if session.role ~= "admin" then
+            return json_response({ code = -403, message = "需要管理员权限才能修改所有者" }, 403)
+        end
+        local ok, err = auth.set_owner(path, post_data.owner_id, post_data.group_id, post_data.resource_type, session)
         if not ok then
             return json_response({ code = -403, message = err or "设置所有者失败" }, 403)
         end
