@@ -373,17 +373,20 @@ end
 -- ==================== Linux rwx 权限 ====================
 
 local function mode_to_octal_str(mode)
-    -- 十进制 mode → "rwxrwxrwx" 字符串
+    -- 十进制 mode → "rwxrwxrwx" — 按八进制位(0-7)分解
+    local ow = math.floor(mode / 64)      -- owner: 0-7
+    local gr = math.floor(mode / 8) % 8   -- group: 0-7
+    local ot = mode % 8                   -- others: 0-7
     return string.format("%s%s%s%s%s%s%s%s%s",
-        (mode / 256) % 8 >= 4 and "r" or "-",
-        (mode / 128) % 2 >= 1 and "w" or "-",
-        (mode / 64) % 2 >= 1  and "x" or "-",
-        (mode / 32) % 8 >= 4  and "r" or "-",
-        (mode / 16) % 2 >= 1  and "w" or "-",
-        (mode / 8) % 2 >= 1   and "x" or "-",
-        (mode / 4) % 8 >= 4   and "r" or "-",
-        (mode / 2) % 2 >= 1   and "w" or "-",
-        mode % 2 >= 1          and "x" or "-"
+        ow >= 4 and "r" or "-",
+        ow % 4 >= 2 and "w" or "-",
+        ow % 2 >= 1 and "x" or "-",
+        gr >= 4 and "r" or "-",
+        gr % 4 >= 2 and "w" or "-",
+        gr % 2 >= 1 and "x" or "-",
+        ot >= 4 and "r" or "-",
+        ot % 4 >= 2 and "w" or "-",
+        ot % 2 >= 1 and "x" or "-"
     )
 end
 

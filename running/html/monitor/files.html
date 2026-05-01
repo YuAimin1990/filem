@@ -2625,11 +2625,14 @@
                 },
                 syncModeStr() {
                     const m = this.permDialog.mode;
-                    const r = (b) => (m / b) % 8 >= 4 ? 'r' : '-';
-                    const w = (b) => (m / b) % 4 >= 2 ? 'w' : '-';
-                    const x = (b) => m % b >= b/2 ? 'x' : '-';
-                    this.permDialog.mode_str = r(256)+w(128)+x(64) + r(32)+w(16)+x(8) + r(4)+w(2)+x(1);
-                    this.permDialog.mode_octal = '0' + Math.floor(m/64) + Math.floor(m/8)%8 + m%8;
+                    const ow = Math.floor(m / 64);
+                    const gr = Math.floor(m / 8) % 8;
+                    const ot = m % 8;
+                    const r = (n) => n >= 4 ? 'r' : '-';
+                    const w = (n) => n % 4 >= 2 ? 'w' : '-';
+                    const x = (n) => n % 2 >= 1 ? 'x' : '-';
+                    this.permDialog.mode_str = r(ow)+w(ow)+x(ow) + r(gr)+w(gr)+x(gr) + r(ot)+w(ot)+x(ot);
+                    this.permDialog.mode_octal = '0' + ow + gr + ot;
                 },
                 async openPermissions(file) {
                     this.permDialogFile = file;
@@ -2722,10 +2725,13 @@
                 },
                 get permChk() {
                     const m = this.permDialog.mode || 0;
+                    const ow = Math.floor(m / 64);
+                    const gr = Math.floor(m / 8) % 8;
+                    const ot = m % 8;
                     return [
-                        (m / 256) % 8 >= 4, (m / 128) % 2 >= 1, (m / 64) % 2 >= 1,
-                        (m / 32) % 8 >= 4,  (m / 16) % 2 >= 1,  (m / 8) % 2 >= 1,
-                        (m / 4) % 8 >= 4,   (m / 2) % 2 >= 1,   m % 2 >= 1
+                        ow >= 4, ow % 4 >= 2, ow % 2 >= 1,
+                        gr >= 4, gr % 4 >= 2, gr % 2 >= 1,
+                        ot >= 4, ot % 4 >= 2, ot % 2 >= 1
                     ];
                 },
                 set permChk(val) {},  // computed getter, no setter needed

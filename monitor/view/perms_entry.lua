@@ -59,6 +59,8 @@ if method == "GET" then
     if not path or path == "" then
         return json_response({ code = -400, message = "缺少 path 参数" }, 400)
     end
+    -- URL 解码路径（%2F → /）
+    path = ngx.unescape_uri(path)
 
     local perm = auth.get_permissions(path)
     if not perm then
