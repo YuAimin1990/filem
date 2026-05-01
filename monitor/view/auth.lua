@@ -13,15 +13,16 @@ local SESSION_TTL = 86400  -- 24小时
 local APP_ROOT = ngx.shared.sidebar_config and ngx.shared.sidebar_config:get("APP_ROOT") or os.getenv("APP_ROOT") or "/awork/fm"
 local USER_DATA_FILE = APP_ROOT .. "/monitor/data/users.jsonl"
 local PERM_DATA_FILE = APP_ROOT .. "/monitor/data/permissions.jsonl"
+local GROUP_DATA_FILE = APP_ROOT .. "/monitor/data/groups.jsonl"
 local SESSION_DICT = ngx.shared.user_sessions
 
--- 权限级别：read < write < delete < admin
-local PERM_LEVELS = {
-    read = 1,
-    write = 2,
-    delete = 3,
-    admin = 4
-}
+-- 权限位: owner(64) / group(8) / others(1) * r(4) / w(2) / x(1)
+-- 例: owner r=256, w=128, x=64; group r=32, w=16, x=8; others r=4, w=2, x=1
+local BIT_OWNER_R = 256; local BIT_OWNER_W = 128; local BIT_OWNER_X = 64
+local BIT_GROUP_R = 32;  local BIT_GROUP_W = 16;  local BIT_GROUP_X = 8
+local BIT_OTHER_R = 4;   local BIT_OTHER_W = 2;   local BIT_OTHER_X = 1
+
+local MAX_RECURSE = 5
 
 -- 生成随机 salt (hex encoded)
 local function generate_salt()
@@ -237,7 +238,128 @@ function _M.get_current_user()
     return _M.get_session()
 end
 
--- 读取权限记录
+-- ==================== 用户组管理 ====================
+
+local function load_groups()
+    ensure_data_dir()
+    local file = io.open(GROUP_DATA_FILE, "r")
+    if not file then return {} end
+    local groups = {}
+    for line in file:lines() do
+        if line and line ~= "" then
+            local ok, g = pcall(cjson.decode, line)
+            if ok and g then groups[g.id] = g end
+        end
+    end
+    file:close()
+    return groups
+end
+
+local function save_groups(groups)
+    ensure_data_dir()
+    local file = io.open(GROUP_DATA_FILE, "w")
+    if not file then return false end
+    for _, g in pairs(groups) do
+        file:write(cjson.encode(g) .. "\n")
+    end
+    file:close()
+    return true
+end
+
+function _M.get_all_groups()
+    local groups = load_groups()
+    local list = {}
+    for _, g in pairs(groups) do
+        table.insert(list, {
+            id = g.id,
+            name = g.name,
+            members = g.members or {},
+            created_at = g.created_at
+        })
+    end
+    return list
+end
+
+function _M.create_group(name, members, session)
+    if session.role ~= "admin" then
+        return nil, "需要管理员权限"
+    end
+    local groups = load_groups()
+    -- check name uniqueness
+    for _, g in pairs(groups) do
+        if g.name == name then
+            return nil, "组名已存在"
+        end
+    end
+    local group = {
+        id = "g_" .. generate_token():sub(1, 16),
+        name = name,
+        members = members or {},
+        created_at = os.time()
+    }
+    groups[group.id] = group
+    save_groups(groups)
+    return group
+end
+
+function _M.update_group(group_id, name, members, session)
+    if session.role ~= "admin" then
+        return nil, "需要管理员权限"
+    end
+    local groups = load_groups()
+    local group = groups[group_id]
+    if not group then
+        return nil, "组不存在"
+    end
+    if name then group.name = name end
+    if members then group.members = members end
+    save_groups(groups)
+    return group
+end
+
+function _M.delete_group(group_id, session)
+    if session.role ~= "admin" then
+        return nil, "需要管理员权限"
+    end
+    local groups = load_groups()
+    if not groups[group_id] then
+        return nil, "组不存在"
+    end
+    groups[group_id] = nil
+    save_groups(groups)
+    return true
+end
+
+function _M.user_in_group(user_id, group_id)
+    if not group_id then return false end
+    local groups = load_groups()
+    local group = groups[group_id]
+    if not group then return false end
+    for _, m in ipairs(group.members or {}) do
+        if m == user_id then return true end
+    end
+    return false
+end
+
+-- ==================== Linux rwx 权限 ====================
+
+local function mode_to_octal_str(mode)
+    -- 十进制 mode → "rwxrwxrwx" 字符串
+    return string.format("%s%s%s%s%s%s%s%s%s",
+        (mode / 256) % 8 >= 4 and "r" or "-",
+        (mode / 128) % 2 >= 1 and "w" or "-",
+        (mode / 64) % 2 >= 1  and "x" or "-",
+        (mode / 32) % 8 >= 4  and "r" or "-",
+        (mode / 16) % 2 >= 1  and "w" or "-",
+        (mode / 8) % 2 >= 1   and "x" or "-",
+        (mode / 4) % 8 >= 4   and "r" or "-",
+        (mode / 2) % 2 >= 1   and "w" or "-",
+        mode % 2 >= 1          and "x" or "-"
+    )
+end
+
+_M.mode_to_octal_str = mode_to_octal_str
+
 local function load_permissions()
     ensure_data_dir()
     local file = io.open(PERM_DATA_FILE, "r")
@@ -255,12 +377,8 @@ local function load_permissions()
     return perms
 end
 
--- 保存权限记录
-local function save_permission(perm)
+local function save_all_permissions(perms)
     ensure_data_dir()
-    local perms = load_permissions()
-    perms[perm.resource_path] = perm
-    -- 重写整个文件
     local file = io.open(PERM_DATA_FILE, "w")
     if not file then return false end
     for _, p in pairs(perms) do
@@ -270,142 +388,131 @@ local function save_permission(perm)
     return true
 end
 
--- 检查权限级别
-local function has_perm_level(granted, required)
-    local g = PERM_LEVELS[granted] or 0
-    local r = PERM_LEVELS[required] or 0
-    return g >= r
-end
-
--- 获取资源的权限记录
 local function get_resource_permission(path)
     local perms = load_permissions()
     return perms[path]
 end
 
--- 检查权限
+-- 三级权限检查: owner > group > others
+local function check_mode_bit(mode, is_owner, is_member)
+    -- 返回该用户能访问的 r/w/x 位集合 (0-7)
+    if is_owner then
+        return math.floor(mode / 64)  -- owner 位在高 3 bit
+    end
+    if is_member then
+        return math.floor(mode / 8) % 8  -- group 位在中间 3 bit
+    end
+    return mode % 8  -- others 位在低 3 bit
+end
+
+local function has_bit(user_bits, required)
+    -- user_bits: 0-7, 每 bit: 4=read, 2=write, 1=execute
+    if required == "read" then
+        return user_bits % 8 >= 4
+    elseif required == "write" then
+        return user_bits % 4 >= 2
+    elseif required == "enter" then
+        return user_bits % 2 == 1
+    end
+    return false
+end
+
+local function _check_perm(session, path, required_action, depth)
+    if depth > MAX_RECURSE then
+        return false, "路径层级过深，拒绝访问"
+    end
+
+    local perm = get_resource_permission(path)
+
+    if not perm then
+        local parent = path:gsub("/[^/]+$", "")
+        if parent == "" or parent == path or parent == "/" then
+            return true
+        end
+        return _check_perm(session, parent, required_action, depth + 1)
+    end
+
+    local is_owner = (perm.owner_id == session.user_id)
+    local is_member = _M.user_in_group(session.user_id, perm.group_id)
+    local user_bits = check_mode_bit(perm.mode or 0, is_owner, is_member)
+
+    if has_bit(user_bits, required_action) then
+        return true
+    end
+
+    return false, "权限不足: 需要 " .. required_action .. " 权限"
+end
+
 function _M.check_permission(session, path, required_action)
-    -- admin 拥有所有权限
+    -- admin 拥有所有权限 (root)
     if session.role == "admin" then
         return true
     end
 
-    -- 获取权限记录
-    local perm = get_resource_permission(path)
-
-    -- 无权限记录：递归检查父目录权限（用于继承）
-    if not perm then
-        local parent_path = path:gsub("/[^/]+$", "")
-        -- 如果已经是根目录或没有父路径，不再递归
-        if parent_path == path or parent_path == "" or parent_path == "/" then
-            return true  -- 根路径无记录时允许访问
-        end
-        return _M.check_permission(session, parent_path, required_action)
+    -- delete 检查父目录的 w 位
+    if required_action == "delete" then
+        local parent = path:gsub("/[^/]+$", "")
+        if parent == "" or parent == path then parent = "/" end
+        return _M.check_permission(session, parent, "write")
     end
 
-    -- 所有者拥有 admin 权限
-    if perm.owner_id == session.user_id then
-        return true
-    end
-
-    -- 检查显式授权
-    if perm.grants then
-        for _, grant in ipairs(perm.grants) do
-            if grant.user_id == session.user_id or grant.user_id == "*" then
-                if has_perm_level(grant.permission, required_action) then
-                    return true
-                end
-            end
-        end
-    end
-
-    -- 如果有权限记录但用户没有足够权限，拒绝访问（不继承父目录）
-    return false, "权限不足: 需要 " .. required_action .. " 权限"
+    return _check_perm(session, path, required_action, 0)
 end
 
--- 设置资源所有者（文件创建时调用）
-function _M.set_owner(path, owner_id, resource_type)
+function _M.set_owner(path, owner_id, group_id, resource_type)
     local perm = get_resource_permission(path)
     if not perm then
         perm = {
-            id = "p_" .. generate_token():sub(1, 16),
             resource_path = path,
             resource_type = resource_type or "file",
             owner_id = owner_id,
-            grants = {},
+            group_id = group_id,
+            mode = 420,  -- 0644 default for files
             created_at = os.time(),
             updated_at = os.time()
         }
+    else
+        perm.owner_id = owner_id
+        if group_id then perm.group_id = group_id end
     end
     perm.updated_at = os.time()
-    save_permission(perm)
+    local perms = load_permissions()
+    perms[perm.resource_path] = perm
+    save_all_permissions(perms)
     return true
 end
 
--- 添加权限授权
-function _M.add_grant(path, user_id, permission, session)
-    -- 需要 admin 权限或 owner 才能授权
-    local ok, err = _M.check_permission(session, path, "admin")
-    if not ok then
-        return false, err
+function _M.set_mode(path, mode, session)
+    local ok, err = _M.check_permission(session, path, "write")
+    if not ok and session.role ~= "admin" then
+        -- owner or admin can chmod
+        local perm = get_resource_permission(path)
+        if not perm or perm.owner_id ~= session.user_id then
+            return false, err or "需要所有者或管理员权限"
+        end
     end
 
-    local perm = get_resource_permission(path)
+    local perms = load_permissions()
+    local perm = perms[path]
     if not perm then
         perm = {
-            id = "p_" .. generate_token():sub(1, 16),
             resource_path = path,
             resource_type = "file",
             owner_id = session.user_id,
-            grants = {},
+            group_id = "",
+            mode = mode,
             created_at = os.time(),
             updated_at = os.time()
         }
+    else
+        perm.mode = mode
     end
-
-    -- 添加或更新授权
-    local found = false
-    for _, grant in ipairs(perm.grants) do
-        if grant.user_id == user_id then
-            grant.permission = permission
-            found = true
-            break
-        end
-    end
-    if not found then
-        table.insert(perm.grants, { user_id = user_id, permission = permission })
-    end
-
     perm.updated_at = os.time()
-    save_permission(perm)
+    perms[path] = perm
+    save_all_permissions(perms)
     return true
 end
 
--- 移除授权
-function _M.remove_grant(path, user_id, session)
-    local ok, err = _M.check_permission(session, path, "admin")
-    if not ok then
-        return false, err
-    end
-
-    local perm = get_resource_permission(path)
-    if not perm then
-        return true  -- 没有记录无所谓
-    end
-
-    local new_grants = {}
-    for _, grant in ipairs(perm.grants) do
-        if grant.user_id ~= user_id then
-            table.insert(new_grants, grant)
-        end
-    end
-    perm.grants = new_grants
-    perm.updated_at = os.time()
-    save_permission(perm)
-    return true
-end
-
--- 获取权限信息
 function _M.get_permissions(path)
     return get_resource_permission(path)
 end
@@ -416,7 +523,7 @@ function _M.get_all_users()
 end
 
 -- 创建用户
-function _M.create_user(username, password, role, creator_session)
+function _M.create_user(username, password, role, primary_group, creator_session)
     -- 只有 admin 可以创建用户
     if not creator_session or creator_session.role ~= "admin" then
         return nil, "需要管理员权限"
@@ -436,6 +543,7 @@ function _M.create_user(username, password, role, creator_session)
         username = username,
         password_hash = hash_password(password),
         role = role or "user",
+        primary_group = primary_group or "g_users",
         created_at = os.time(),
         updated_at = os.time()
     }

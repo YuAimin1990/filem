@@ -112,6 +112,23 @@ local function is_admin()
     return ngx.ctx.is_admin == true
 end
 
+-- 为新创建的文件/目录设置 Linux 权限记录
+local function set_perm_on_create(path, is_directory)
+    local auth = require "monitor.view.auth"
+    local session = get_session()
+    if not session then return end
+    local group_id = ""
+    local users = auth.get_all_users()
+    for _, u in pairs(users) do
+        if u.id == session.user_id then
+            group_id = u.primary_group or ""
+            break
+        end
+    end
+    local mode = is_directory and 493 or 420  -- 0755 / 0644
+    auth.set_owner(path, session.user_id, group_id, is_directory and "directory" or "file")
+end
+
 -- 权限检查辅助（内部使用 auth 模块）
 local function check_file_permission(path, required_action)
     local auth = require "monitor.view.auth"
@@ -380,6 +397,32 @@ function _M.handle_list(path)
     end
     handle:close()
     
+    -- 查询本目录下各文件的权限信息
+    local auth = require "monitor.view.auth"
+    local path_perm = auth.get_permissions(path)
+    for _, item in ipairs(items) do
+        local item_path = path .. "/" .. item.name
+        local p = auth.get_permissions(item_path)
+        if p then
+            item.mode_str = auth.mode_to_octal_str(p.mode or 0)
+            item.owner_id = p.owner_id or ""
+            local users = auth.get_all_users()
+            for _, u in pairs(users) do
+                if u.id == p.owner_id then
+                    item.owner_name = u.username
+                    break
+                end
+            end
+        elseif path_perm then
+            -- 继承父目录权限
+            item.mode_str = auth.mode_to_octal_str(path_perm.mode or 0)
+            item.owner_id = path_perm.owner_id or ""
+        else
+            item.mode_str = "rwxrwxrwx"
+            item.owner_id = ""
+        end
+    end
+    
     -- 排序: 目录在前，文件在后，按名称排序
     table.sort(items, function(a, b)
         if a.type == b.type then
@@ -551,6 +594,8 @@ function _M.handle_mkdir(path)
         return json_response({ code = -500, message = "创建目录失败" }, 500)
     end
 
+    set_perm_on_create(path, true)
+
     return json_response({
         code = 0,
         data = { path = path, message = "目录创建成功" }
@@ -647,6 +692,8 @@ function _M.handle_upload(path, filename)
     end
     check:close()
     
+    set_perm_on_create(full_path, false)
+
     return json_response({
         code = 0,
         data = {
@@ -1058,6 +1105,11 @@ function _M.handle_save(path, content)
     local success, write_err = file:write(content)
     file:close()
     
+    -- 新文件（未备份 = 文件不存在或为空）设置权限记录
+    if backup_name == nil then
+        set_perm_on_create(path, false)
+    end
+
     if not success then
         return json_response({ code = -500, message = "写入失败: " .. (write_err or "未知错误") }, 500)
     end

@@ -41,6 +41,7 @@ if method == "GET" then
             id = u.id,
             username = u.username,
             role = u.role,
+            primary_group = u.primary_group or "",
             created_at = u.created_at,
             updated_at = u.updated_at
         })
@@ -66,6 +67,7 @@ elseif method == "POST" then
     local username = post_data.username
     local password = post_data.password
     local role = post_data.role or "user"
+    local primary_group = post_data.primary_group or "g_users"
 
     if not username or not password then
         return json_response({ code = -400, message = "用户名和密码不能为空" }, 400)
@@ -75,7 +77,7 @@ elseif method == "POST" then
         return json_response({ code = -400, message = "角色必须是 user 或 admin" }, 400)
     end
 
-    local user, err = auth.create_user(username, password, role, session)
+    local user, err = auth.create_user(username, password, role, primary_group, session)
     if not user then
         return json_response({ code = -400, message = err or "创建用户失败" }, 400)
     end

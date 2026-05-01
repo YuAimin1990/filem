@@ -1,14 +1,11 @@
 --[[
-权限管理 API 入口
-GET  /api/permissions?path=xxx - 获取路径权限
-PUT  /api/permissions         - 设置权限
+Linux chmod 权限 API
+GET  /api/permissions?path=xxx  — 返回 {owner_id, group_id, mode, mode_str, owner_name, group_name}
+PUT  /api/permissions           — 设置 {resource_path, mode}
 ]]
 
 local cjson = require "cjson"
 local auth = require "monitor.view.auth"
-
-local APP_ROOT = ngx.shared.sidebar_config and ngx.shared.sidebar_config:get("APP_ROOT") or os.getenv("APP_ROOT") or "/awork/fm"
-local PERM_DATA_FILE = APP_ROOT .. "/monitor/data/permissions.jsonl"
 
 local method = ngx.req.get_method()
 
@@ -34,6 +31,29 @@ if not session then
     return json_response({ code = -401, message = "请先登录" }, 401)
 end
 
+-- 解析用户名（从用户列表中查）
+local function resolve_username(user_id)
+    if not user_id or user_id == "" then return "未知" end
+    local users = auth.get_all_users()
+    for _, u in pairs(users) do
+        if u.id == user_id then
+            return u.username
+        end
+    end
+    return user_id
+end
+
+local function resolve_groupname(group_id)
+    if not group_id or group_id == "" then return "" end
+    local groups = auth.get_all_groups()
+    for _, g in ipairs(groups) do
+        if g.id == group_id then
+            return g.name
+        end
+    end
+    return group_id
+end
+
 if method == "GET" then
     local path = ngx.var.arg_path
     if not path or path == "" then
@@ -42,25 +62,41 @@ if method == "GET" then
 
     local perm = auth.get_permissions(path)
     if not perm then
-        -- 没有权限记录，返回默认状态
         return json_response({
             code = 0,
             data = {
                 resource_path = path,
-                owner_id = nil,
-                grants = {},
-                message = "无权限记录"
+                owner_id = "",
+                group_id = "",
+                mode = 0,
+                mode_str = "---------",
+                mode_octal = "0000",
+                owner_name = "",
+                group_name = "",
+                message = "无权限记录 — 默认允许所有操作"
             }
         })
     end
+
+    local mode = perm.mode or 0
+    local mode_str = auth.mode_to_octal_str(mode)
+    -- 手动 oct 转换: mode=420 → 0o644
+    local mode_octal = string.format("0%d%d%d",
+        math.floor(mode / 64),
+        math.floor(mode / 8) % 8,
+        mode % 8)
 
     return json_response({
         code = 0,
         data = {
             resource_path = perm.resource_path,
-            resource_type = perm.resource_type,
-            owner_id = perm.owner_id,
-            grants = perm.grants or {},
+            owner_id = perm.owner_id or "",
+            group_id = perm.group_id or "",
+            mode = mode,
+            mode_str = mode_str,
+            mode_octal = mode_octal,
+            owner_name = resolve_username(perm.owner_id),
+            group_name = resolve_groupname(perm.group_id),
             created_at = perm.created_at,
             updated_at = perm.updated_at
         }
@@ -73,9 +109,7 @@ elseif method == "PUT" then
 
     if body then
         local ok, decoded = pcall(cjson.decode, body)
-        if ok then
-            post_data = decoded
-        end
+        if ok then post_data = decoded end
     end
 
     local path = post_data.resource_path
@@ -83,123 +117,23 @@ elseif method == "PUT" then
         return json_response({ code = -400, message = "缺少 resource_path" }, 400)
     end
 
-    -- 如果是设置所有者（新建权限记录）
-    if post_data.owner_id and not post_data.grants and not post_data.grant then
-        -- 直接设置 owner（需要 admin 或当前 owner）
-        local ok, err
-        if session.role == "admin" then
-            ok = true
-        else
-            local existing = auth.get_permissions(path)
-            if existing and existing.owner_id == session.user_id then
-                ok = true
-            else
-                ok, err = false, "需要管理员权限或所有者身份"
-            end
-        end
-
+    if post_data.mode then
+        local ok, err = auth.set_mode(path, tonumber(post_data.mode), session)
         if not ok then
-            return json_response({ code = -403, message = err }, 403)
-        end
-
-        -- 创建权限记录
-        local perm = {
-            id = "p_" .. tostring(os.time()),
-            resource_path = path,
-            resource_type = post_data.resource_type or "file",
-            owner_id = post_data.owner_id,
-            grants = {},
-            created_at = os.time(),
-            updated_at = os.time()
-        }
-
-        -- 保存
-        local perms = {}
-        local file = io.open(PERM_DATA_FILE, "r")
-        if file then
-            for line in file:lines() do
-                if line and line ~= "" then
-                    local ok, p = pcall(cjson.decode, line)
-                    if ok and p then
-                        perms[p.resource_path] = p
-                    end
-                end
-            end
-            file:close()
-        end
-
-        perms[path] = perm
-        file = io.open(PERM_DATA_FILE, "w")
-        if file then
-            for _, p in pairs(perms) do
-                file:write(cjson.encode(p) .. "\n")
-            end
-            file:close()
-        end
-
-        return json_response({ code = 0, data = perm })
-    end
-
-    -- 添加或更新授权
-    local grant = post_data.grant
-    if grant and grant.user_id and grant.permission then
-        local ok, err = auth.add_grant(path, grant.user_id, grant.permission, session)
-        if not ok then
-            return json_response({ code = -403, message = err }, 403)
+            return json_response({ code = -403, message = err or "设置权限失败" }, 403)
         end
         return json_response({ code = 0, data = { message = "权限已更新" } })
     end
 
-    -- 批量设置授权
-    if post_data.grants then
-        -- 需要 admin 权限
-        local ok, err = auth.check_permission(session, path, "admin")
+    if post_data.owner_id then
+        local ok, err = auth.set_owner(path, post_data.owner_id, post_data.group_id, post_data.resource_type)
         if not ok then
-            return json_response({ code = -403, message = err }, 403)
+            return json_response({ code = -403, message = err or "设置所有者失败" }, 403)
         end
-
-        -- 读取现有权限
-        local perm = auth.get_permissions(path) or {
-            id = "p_" .. tostring(os.time()),
-            resource_path = path,
-            resource_type = post_data.resource_type or "file",
-            owner_id = session.user_id,
-            grants = {},
-            created_at = os.time(),
-            updated_at = os.time()
-        }
-
-        perm.grants = post_data.grants
-        perm.updated_at = os.time()
-
-        -- 保存
-        local perms = {}
-        local file = io.open(PERM_DATA_FILE, "r")
-        if file then
-            for line in file:lines() do
-                if line and line ~= "" then
-                    local ok, p = pcall(cjson.decode, line)
-                    if ok and p then
-                        perms[p.resource_path] = p
-                    end
-                end
-            end
-            file:close()
-        end
-
-        perms[path] = perm
-        file = io.open(PERM_DATA_FILE, "w")
-        if file then
-            for _, p in pairs(perms) do
-                file:write(cjson.encode(p) .. "\n")
-            end
-            file:close()
-        end
-
-        return json_response({ code = 0, data = { message = "权限已更新", grants = post_data.grants } })
+        return json_response({ code = 0, data = { message = "所有者已更新" } })
     end
 
-    return json_response({ code = -400, message = "无效的请求格式" }, 400)
+    return json_response({ code = -400, message = "需要 mode 或 owner_id" }, 400)
 
 else
     return json_response({ code = -405, message = "Method not allowed" }, 405)
