@@ -1017,11 +1017,14 @@ function _M.handle_save(path, content)
         end
     end
 
-    -- 检查文件是否存在，如果存在则备份
+    -- 检查文件是否存在且非空，如果存在则备份
     local backup_name = nil
     local exist_file = io.open(path, "r")
     if exist_file then
+        local file_size = exist_file:seek("end")
         exist_file:close()
+        -- 空文件不备份（新建文件首次保存的情况）
+        if file_size and file_size > 0 then
         
         -- 获取文件修改时间
         local date_cmd = string.format("date +%%Y%%m%%d_%%H%%M%%S -r '%s' 2>/dev/null", path:gsub("'", "'\\''"))
@@ -1043,6 +1046,7 @@ function _M.handle_save(path, content)
         -- 执行备份
         local backup_cmd = string.format("cp '%s' '%s' 2>&1", path:gsub("'", "'\\''"), backup_name:gsub("'", "'\\''"))
         exec_cmd(backup_cmd)
+        end
     end
     
     -- 写入新内容
