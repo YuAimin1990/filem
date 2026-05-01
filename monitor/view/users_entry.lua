@@ -1,5 +1,5 @@
 --[[
-用户管理 API 入口 (admin only)
+用户管理 API 入口（GET 所有已登录用户，写操作需 admin）
 GET  /api/users      - 用户列表
 POST /api/users      - 创建用户
 PUT  /api/users/:id  - 更新用户

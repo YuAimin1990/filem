@@ -1433,7 +1433,7 @@
 
             <!-- HTML 预览 -->
             <div x-show="preview.mediaType === 'html'" class="flex-1 overflow-hidden bg-white">
-                <iframe :srcdoc="preview.content" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin"></iframe>
+                <iframe :srcdoc="preview.content" class="w-full h-full border-0" sandbox="allow-scripts"></iframe>
             </div>
 
             <!-- PDF 预览 -->
@@ -2620,10 +2620,7 @@
                     this.permGrantLevel = 'read';
                     this.showPermDialog = true;
 
-                    // 缓存用户列表
-                    if (this.allUsers.length === 0) {
-                        await this.fetchUsers();
-                    }
+                    await this.fetchUsers();
 
                     const fullPath = this.getFullPath(file.name);
                     await this.fetchPermissions(fullPath);
@@ -2637,6 +2634,7 @@
                         }
                     } catch (e) {
                         console.error('fetchUsers failed:', e);
+                        this.showToast('获取用户列表失败，请关闭对话框后重试', 'error');
                     }
                 },
                 async fetchPermissions(path) {
